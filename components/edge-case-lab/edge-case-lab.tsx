@@ -37,9 +37,9 @@ const modeIcons: Record<IntegrationMode, typeof Wallet> = {
 };
 
 const impactLabel: Record<IntegrationMode, string> = {
-  wallet: "If you ship a wallet",
-  exchange: "If you run an exchange",
-  fintech: "If you build a fintech app",
+  wallet: "Wallet impact",
+  exchange: "Exchange impact",
+  fintech: "Fintech impact",
 };
 
 export function EdgeCaseLab() {
@@ -83,9 +83,8 @@ export function EdgeCaseLab() {
             <span className={styles.eyebrow}>Integration compatibility suite</span>
             <h1>Will your Ondo Stocks integration survive production?</h1>
             <p>
-              A correct happy-path integration can still break users when market state, corporate actions, limits, or
-              the schema itself moves. This lab replays {labChecks.length} documented production states against a
-              happy-path integration and shows what to ship instead.
+              {labChecks.length} documented production states, replayed live against a happy-path integration. Watch
+              each one break, then see the fix.
             </p>
           </div>
           <div className={styles.heroPanel}>
@@ -149,7 +148,7 @@ export function EdgeCaseLab() {
                 <div className={styles.checkBody}>
                   <div className={styles.checkMainCol}>
                     <div className={styles.naiveBlock}>
-                      <span>The happy-path assumption</span>
+                      <span>The happy path assumes</span>
                       <p>{check.naiveAssumption}</p>
                       <div className={`${styles.naiveOutput} ${result?.threw ? styles.naiveThrew : ""}`}>
                         <span>
@@ -159,7 +158,7 @@ export function EdgeCaseLab() {
                       </div>
                     </div>
                     <div className={styles.correctBlock}>
-                      <span>What to ship instead</span>
+                      <span>Ship instead</span>
                       <ul>
                         {check.correct.map((point) => (
                           <li key={point}>{point}</li>
@@ -174,11 +173,11 @@ export function EdgeCaseLab() {
                       <p>{check.impact[mode]}</p>
                     </div>
                     <div className={styles.userCopy}>
-                      <span>Copy that survives this state</span>
+                      <span>Say to users</span>
                       <p>&ldquo;{check.userCopy}&rdquo;</p>
                     </div>
                     <div className={styles.endpointPills}>
-                      <span>Contract surface</span>
+                      <span>Endpoints</span>
                       {check.endpoints.map((endpoint) => (
                         <code key={endpoint.path}>{endpoint.method} {endpoint.path}</code>
                       ))}
@@ -208,8 +207,8 @@ export function EdgeCaseLab() {
             <span>Contract surface</span>
             <h2>The states above compose from {labEndpointDirectory.length} endpoints</h2>
             <p>
-              No single endpoint answers &ldquo;can this user trade this asset right now.&rdquo; Tradability is the
-              composition of market state, per-asset events, session rules, limits, and quote availability.
+              &ldquo;Can this user trade right now&rdquo; is a composition: market state, asset events, sessions,
+              limits, and quotes.
             </p>
           </div>
           <div className={styles.directoryGrid}>
@@ -224,13 +223,12 @@ export function EdgeCaseLab() {
 
         <footer className={styles.methodology}>
           <div>
-            <span>Methodology &amp; honesty</span>
+            <span>Methodology</span>
             <p>
-              Fixtures are modeled field-for-field on Ondo&rsquo;s published OpenAPI specification (GM Backend API
-              v1.0.0, fetched August 2, 2026) and the documented upcoming changes. The live API requires an
-              <code> x-api-key</code>, so this lab runs on labeled demo fixtures; numeric values are illustrative. The
-              runner is a single adapter away from live endpoints. Independent prototype by Zachary Roth — not
-              affiliated with or endorsed by Ondo Finance.
+              Fixtures mirror Ondo&rsquo;s published OpenAPI spec (GM Backend API v1.0.0, August 2026) and its
+              announced changes; values are illustrative, and the live API requires an <code>x-api-key</code>, so the
+              lab runs on labeled demo fixtures one adapter away from live endpoints. Independent prototype by Zachary
+              Roth — not affiliated with or endorsed by Ondo Finance.
             </p>
           </div>
           <div className={styles.methodologyLinks}>
