@@ -79,8 +79,8 @@ export function BasisMonitor({ data }: { data: BasisData }) {
 
         {data.rows.length ? (
           <p className={styles.tableNote}>
-            All {data.rows.length} GM tokens in CoinGecko&rsquo;s &ldquo;Ondo Tokenized Assets&rdquo; category, sorted
-            by widest basis.
+            All {data.rows.length}{" "}GM tokens in CoinGecko&rsquo;s &ldquo;Ondo Tokenized Assets&rdquo; category,
+            sorted by widest basis.
           </p>
         ) : null}
         <section className={styles.table} aria-label="Weekend basis by asset">
@@ -130,7 +130,7 @@ export function BasisMonitor({ data }: { data: BasisData }) {
             weekends. Known residual: the basis assumes 1 token = 1 share, but GM tokens accrue dividends via a shares
             multiplier — for dividend payers (AAPL, SPY), part of a persistent premium is accrued dividends, and the
             multiplier endpoint requires an API key, so it is not applied here. Non-payers (TSLA, MSTR, CRCL) are clean
-            reads. Gaps beyond ±{OUTLIER_BPS} bps are flagged and sorted last — at that size the cause is usually a
+            reads. Gaps beyond ±{OUTLIER_BPS}{" "}bps are flagged and sorted last — at that size the cause is usually a
             stock split carried in the multiplier or a thin, stale token print, not weekend pricing. Token prints older
             than the underlying&rsquo;s close are flagged &ldquo;pre-close print&rdquo; and excluded from the headline —
             they compare a pre-close token price to the close, so they say nothing about the weekend. Informational only
