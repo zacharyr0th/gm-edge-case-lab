@@ -4,6 +4,7 @@ import {
   ArrowUpRight,
   Braces,
   Building2,
+  ChevronDown,
   CircleAlert,
   CircleX,
   FlaskConical,
@@ -45,6 +46,7 @@ const impactLabel: Record<IntegrationMode, string> = {
 export function EdgeCaseLab() {
   const [mode, setMode] = useState<IntegrationMode>("wallet");
   const [runId, setRunId] = useState(0);
+  const [openId, setOpenId] = useState<string | null>(labChecks[0]?.id ?? null);
   const [results, setResults] = useState<LabRun[] | null>(null);
 
   useEffect(() => {
@@ -83,11 +85,11 @@ export function EdgeCaseLab() {
       <main className={styles.main}>
         <section className={styles.hero}>
           <div>
-            <span className={styles.eyebrow}>Integration compatibility suite</span>
+            <span className={styles.eyebrow}>Integration compatibility matrix</span>
             <h1>Will your Ondo Stocks integration survive production?</h1>
             <p>
-              {labChecks.length} documented production states, replayed live against a happy-path integration. Watch
-              each one break, then see the fix.
+              {labChecks.length} documented production states, replayed live against a happy-path integration. Open a
+              row for the failure, the fix, and the fixture.
             </p>
           </div>
           <div className={styles.heroPanel}>
@@ -128,83 +130,96 @@ export function EdgeCaseLab() {
           </p>
         </section>
 
-        <div className={styles.checkList} key={runId}>
+        <div className={styles.matrix} key={runId}>
+          <div className={styles.matrixHead}>
+            <span>#</span>
+            <span>Production state</span>
+            <span>Verdict</span>
+            <span className={styles.matrixHeadFix}>Fix</span>
+            <span />
+          </div>
           {labChecks.map((check, index) => {
             const result = results?.[index];
             const verdict = verdictMeta[check.verdict];
             const VerdictIcon = verdict.icon;
+            const open = openId === check.id;
             return (
-              <article key={check.id} className={styles.checkCard} style={{ "--i": index } as React.CSSProperties}>
-                <header className={styles.checkHeader}>
-                  <span className={styles.checkNumber}>{String(index + 1).padStart(2, "0")}</span>
-                  <div>
+              <div key={check.id} className={styles.matrixItem} style={{ "--i": index } as React.CSSProperties}>
+                <button
+                  type="button"
+                  className={`${styles.matrixRow} ${open ? styles.matrixRowOpen : ""}`}
+                  aria-expanded={open}
+                  onClick={() => setOpenId(open ? null : check.id)}
+                >
+                  <span className={styles.mNum}>{String(index + 1).padStart(2, "0")}</span>
+                  <span className={styles.mState}>
+                    <strong>{check.title}</strong>
                     <em>{check.category}</em>
-                    <h2>{check.title}</h2>
-                  </div>
-                  <span className={`${styles.verdictChip} ${verdict.className}`}>
-                    <VerdictIcon size={14} strokeWidth={2.2} /> {verdict.label}
                   </span>
-                </header>
+                  <span className={`${styles.verdictChip} ${verdict.className}`}>
+                    <VerdictIcon size={13} strokeWidth={2.2} /> {verdict.label}
+                  </span>
+                  <span className={styles.mFix}>{check.correct[0]}</span>
+                  <ChevronDown size={16} className={styles.mChev} />
+                </button>
 
-                <div className={styles.outputWrap}>
-                  <div className={`${styles.naiveOutput} ${result?.threw ? styles.naiveThrew : ""}`}>
-                    <span>
-                      {result ? (result.threw ? "Thrown in your browser just now" : "What actually renders") : "Running the happy-path parser…"}
-                    </span>
-                    <code>{result ? result.output : "…"}</code>
-                  </div>
-                </div>
-                <p className={styles.fixLine}><strong>Fix</strong>{check.correct[0]}</p>
-
-                <details className={styles.fixtureDetails}>
-                  <summary><Braces size={14} /> Details &amp; fixtures ({check.fixtures.length})</summary>
-                  <div className={styles.checkBody}>
-                    <div className={styles.checkMainCol}>
-                      <p className={styles.detailScenario}>{check.scenario}</p>
-                      <div className={styles.naiveBlock}>
-                        <span>The happy path assumes</span>
-                        <p>{check.naiveAssumption}</p>
-                      </div>
-                      {check.correct.length > 1 ? (
+                {open ? (
+                  <div className={styles.matrixDetail}>
+                    <div className={styles.checkBody}>
+                      <div className={styles.checkMainCol}>
+                        <p className={styles.detailScenario}>{check.scenario}</p>
+                        <div className={styles.naiveBlock}>
+                          <span>The happy path assumes</span>
+                          <p>{check.naiveAssumption}</p>
+                          <div className={`${styles.naiveOutput} ${result?.threw ? styles.naiveThrew : ""}`}>
+                            <span>
+                              {result ? (result.threw ? "Thrown in your browser just now" : "What actually renders") : "Running the happy-path parser…"}
+                            </span>
+                            <code>{result ? result.output : "…"}</code>
+                          </div>
+                        </div>
                         <div className={styles.correctBlock}>
-                          <span>Also ship</span>
+                          <span>Ship instead</span>
                           <ul>
-                            {check.correct.slice(1).map((point) => (
+                            {check.correct.map((point) => (
                               <li key={point}>{point}</li>
                             ))}
                           </ul>
                         </div>
-                      ) : null}
-                    </div>
+                      </div>
 
-                    <aside className={styles.checkAside}>
-                      <div>
-                        <span>{impactLabel[mode]}</span>
-                        <p>{check.impact[mode]}</p>
-                      </div>
-                      <div className={styles.userCopy}>
-                        <span>Say to users</span>
-                        <p>&ldquo;{check.userCopy}&rdquo;</p>
-                      </div>
-                      <div className={styles.endpointPills}>
-                        <span>Endpoints</span>
-                        {check.endpoints.map((endpoint) => (
-                          <code key={endpoint.path}>{endpoint.method} {endpoint.path}</code>
-                        ))}
-                        <a href={check.doc.url} target="_blank" rel="noreferrer">
-                          {check.doc.label} <ArrowUpRight size={13} />
-                        </a>
-                      </div>
-                    </aside>
-                  </div>
-                  {check.fixtures.map((fixture) => (
-                    <div key={fixture.label} className={styles.fixture}>
-                      <span>{fixture.label}</span>
-                      <pre>{JSON.stringify(fixture.body, null, 2)}</pre>
+                      <aside className={styles.checkAside}>
+                        <div>
+                          <span>{impactLabel[mode]}</span>
+                          <p>{check.impact[mode]}</p>
+                        </div>
+                        <div className={styles.userCopy}>
+                          <span>Say to users</span>
+                          <p>&ldquo;{check.userCopy}&rdquo;</p>
+                        </div>
+                        <div className={styles.endpointPills}>
+                          <span>Endpoints</span>
+                          {check.endpoints.map((endpoint) => (
+                            <code key={endpoint.path}>{endpoint.method} {endpoint.path}</code>
+                          ))}
+                          <a href={check.doc.url} target="_blank" rel="noreferrer">
+                            {check.doc.label} <ArrowUpRight size={13} />
+                          </a>
+                        </div>
+                      </aside>
                     </div>
-                  ))}
-                </details>
-              </article>
+                    <details className={styles.fixtureDetails}>
+                      <summary><Braces size={14} /> Fixture payloads ({check.fixtures.length})</summary>
+                      {check.fixtures.map((fixture) => (
+                        <div key={fixture.label} className={styles.fixture}>
+                          <span>{fixture.label}</span>
+                          <pre>{JSON.stringify(fixture.body, null, 2)}</pre>
+                        </div>
+                      ))}
+                    </details>
+                  </div>
+                ) : null}
+              </div>
             );
           })}
         </div>

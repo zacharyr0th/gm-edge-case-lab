@@ -54,7 +54,7 @@ export function BasisMonitor({ data }: { data: BasisData }) {
           </div>
         </div>
         <nav className={styles.topNav}>
-          <a className={styles.navLink} href="/">Edge-case lab</a>
+          <a className={styles.navLink} href="/lab">Edge-case lab</a>
         </nav>
       </header>
 
@@ -135,7 +135,7 @@ export function BasisMonitor({ data }: { data: BasisData }) {
             than the underlying&rsquo;s close are flagged &ldquo;pre-close print&rdquo; and excluded from the headline —
             they compare a pre-close token price to the close, so they say nothing about the weekend. Informational only
             — not pricing or investment advice. Independent prototype by Zachary Roth, not
-            affiliated with Ondo Finance. <a href="/" className={styles.inlineLink}>See the integration edge-case lab <ArrowUpRight size={12} /></a>
+            affiliated with Ondo Finance. <a href="/lab" className={styles.inlineLink}>See the integration edge-case lab <ArrowUpRight size={12} /></a>
           </p>
         </footer>
       </main>
