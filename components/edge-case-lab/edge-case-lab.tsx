@@ -88,8 +88,8 @@ export function EdgeCaseLab() {
             <span className={styles.eyebrow}>Integration compatibility matrix</span>
             <h1>Will your Ondo Stocks integration survive production?</h1>
             <p>
-              {labChecks.length} documented production states, replayed live against a happy-path integration. Open a
-              row for the failure, the fix, and the fixture.
+              {labChecks.length}{" "}real-world moments that break a typical integration — weekends, dividends, halts,
+              schema changes. Open a row to watch one break and see the fix.
             </p>
           </div>
           <div className={styles.heroPanel}>
@@ -108,15 +108,15 @@ export function EdgeCaseLab() {
           <div className={styles.explainerWhat}>
             <span>What is this?</span>
             <p>
-              Ondo Stocks are tokenized U.S. equities with a public API. Wallets, exchanges, and fintech apps integrate
-              that API to show and trade them — and integrations usually get built for the happy path: market open,
-              fresh prices, one stock per token. Production is messier: weekends, earnings halts, dividends, rate
-              limits, schema changes.
+              Imagine a wallet adds Ondo&rsquo;s tokenized stocks. A developer wires up the API, tests on a Tuesday
+              afternoon with the market open, everything works, it ships. That app is now wrong in twelve specific
+              ways — and nobody knows yet, because each one only shows up later.
             </p>
             <p>
-              Each row below is one real state taken from Ondo&rsquo;s own docs and API contract. Open it to see the
-              exact API response, watch a happy-path integration mishandle it — the parser runs live in your browser —
-              and read what to ship instead.
+              Saturday arrives and it says &ldquo;market closed&rdquo; while Ondo is still quoting. Apple pays a
+              dividend and every balance it displays goes stale. An announced schema change lands and the token screen
+              crashes. Each row below is one of those moments: the exact API response, the buggy result — run live in
+              your browser — and the fix.
             </p>
           </div>
           <div className={styles.explainerLegend}>
@@ -156,7 +156,7 @@ export function EdgeCaseLab() {
             })}
           </div>
           <p className={styles.summaryLine}>
-            A happy-path integration mishandles <strong>all {labChecks.length}</strong> states:{" "}
+            A typical integration gets <strong>all {labChecks.length}</strong> wrong:{" "}
             <em className={styles.summaryCrash}>{crashCount} crash</em>,{" "}
             <em className={styles.summaryWrong}>{wrongCount} render wrong</em>,{" "}
             <em className={styles.summaryDegraded}>{degradedCount} degrade</em>.
@@ -242,7 +242,7 @@ export function EdgeCaseLab() {
                       </aside>
                     </div>
                     <details className={styles.fixtureDetails}>
-                      <summary><Braces size={14} /> Fixture payloads ({check.fixtures.length})</summary>
+                      <summary><Braces size={14} /> The API responses used ({check.fixtures.length})</summary>
                       {check.fixtures.map((fixture) => (
                         <div key={fixture.label} className={styles.fixture}>
                           <span>{fixture.label}</span>
