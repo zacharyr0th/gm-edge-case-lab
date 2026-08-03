@@ -72,9 +72,12 @@ export function EdgeCaseLab() {
             <span>Unofficial · built on Ondo&rsquo;s published API contract</span>
           </div>
         </div>
-        <a className={styles.specLink} href="https://docs.ondo.finance/openapi.json" target="_blank" rel="noreferrer">
-          openapi.json <ArrowUpRight size={14} />
-        </a>
+        <nav className={styles.topNav}>
+          <a className={styles.navLink} href="/basis">Weekend basis</a>
+          <a className={styles.specLink} href="https://docs.ondo.finance/openapi.json" target="_blank" rel="noreferrer">
+            openapi.json <ArrowUpRight size={14} />
+          </a>
+        </nav>
       </header>
 
       <main className={styles.main}>
@@ -143,53 +146,57 @@ export function EdgeCaseLab() {
                   </span>
                 </header>
 
-                <p className={styles.scenario}>{check.scenario}</p>
-
-                <div className={styles.checkBody}>
-                  <div className={styles.checkMainCol}>
-                    <div className={styles.naiveBlock}>
-                      <span>The happy path assumes</span>
-                      <p>{check.naiveAssumption}</p>
-                      <div className={`${styles.naiveOutput} ${result?.threw ? styles.naiveThrew : ""}`}>
-                        <span>
-                          {result ? (result.threw ? "Thrown in your browser just now" : "What actually renders") : "Running the happy-path parser…"}
-                        </span>
-                        <code>{result ? result.output : "…"}</code>
-                      </div>
-                    </div>
-                    <div className={styles.correctBlock}>
-                      <span>Ship instead</span>
-                      <ul>
-                        {check.correct.map((point) => (
-                          <li key={point}>{point}</li>
-                        ))}
-                      </ul>
-                    </div>
+                <div className={styles.outputWrap}>
+                  <div className={`${styles.naiveOutput} ${result?.threw ? styles.naiveThrew : ""}`}>
+                    <span>
+                      {result ? (result.threw ? "Thrown in your browser just now" : "What actually renders") : "Running the happy-path parser…"}
+                    </span>
+                    <code>{result ? result.output : "…"}</code>
                   </div>
-
-                  <aside className={styles.checkAside}>
-                    <div>
-                      <span>{impactLabel[mode]}</span>
-                      <p>{check.impact[mode]}</p>
-                    </div>
-                    <div className={styles.userCopy}>
-                      <span>Say to users</span>
-                      <p>&ldquo;{check.userCopy}&rdquo;</p>
-                    </div>
-                    <div className={styles.endpointPills}>
-                      <span>Endpoints</span>
-                      {check.endpoints.map((endpoint) => (
-                        <code key={endpoint.path}>{endpoint.method} {endpoint.path}</code>
-                      ))}
-                      <a href={check.doc.url} target="_blank" rel="noreferrer">
-                        {check.doc.label} <ArrowUpRight size={13} />
-                      </a>
-                    </div>
-                  </aside>
                 </div>
+                <p className={styles.fixLine}><strong>Fix</strong>{check.correct[0]}</p>
 
                 <details className={styles.fixtureDetails}>
-                  <summary><Braces size={14} /> Fixture payloads ({check.fixtures.length})</summary>
+                  <summary><Braces size={14} /> Details &amp; fixtures ({check.fixtures.length})</summary>
+                  <div className={styles.checkBody}>
+                    <div className={styles.checkMainCol}>
+                      <p className={styles.detailScenario}>{check.scenario}</p>
+                      <div className={styles.naiveBlock}>
+                        <span>The happy path assumes</span>
+                        <p>{check.naiveAssumption}</p>
+                      </div>
+                      {check.correct.length > 1 ? (
+                        <div className={styles.correctBlock}>
+                          <span>Also ship</span>
+                          <ul>
+                            {check.correct.slice(1).map((point) => (
+                              <li key={point}>{point}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <aside className={styles.checkAside}>
+                      <div>
+                        <span>{impactLabel[mode]}</span>
+                        <p>{check.impact[mode]}</p>
+                      </div>
+                      <div className={styles.userCopy}>
+                        <span>Say to users</span>
+                        <p>&ldquo;{check.userCopy}&rdquo;</p>
+                      </div>
+                      <div className={styles.endpointPills}>
+                        <span>Endpoints</span>
+                        {check.endpoints.map((endpoint) => (
+                          <code key={endpoint.path}>{endpoint.method} {endpoint.path}</code>
+                        ))}
+                        <a href={check.doc.url} target="_blank" rel="noreferrer">
+                          {check.doc.label} <ArrowUpRight size={13} />
+                        </a>
+                      </div>
+                    </aside>
+                  </div>
                   {check.fixtures.map((fixture) => (
                     <div key={fixture.label} className={styles.fixture}>
                       <span>{fixture.label}</span>
