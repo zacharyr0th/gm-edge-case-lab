@@ -4,6 +4,10 @@ A one-page compatibility suite for [Ondo Stocks (Global Markets)](https://docs.o
 
 Each state includes the wrong assumption, the actual runtime result, the correct handling, impact by integrator type (wallet, exchange, fintech app), suggested user-facing copy, the endpoints involved, and the contract-faithful fixture payload.
 
+## Weekend Basis Monitor
+
+`/basis` charts the live premium or discount of every GM token vs its underlying's last U.S. close. Assets are discovered from CoinGecko's "Ondo Tokenized Assets" category; closes come from Yahoo Finance. Gaps beyond ±500 bps are flagged as likely splits or stale prints, and token prints older than the underlying's close are flagged "pre-close print" — both are excluded from the headline number.
+
 ## Why
 
 No single endpoint answers "can this user trade this asset right now." Tradability is the composition of market status, per-asset events, session rules, trading limits, and quote availability. Integrations that read one flag ship bugs that surface as user confusion, failed transactions, or wrong financial figures.

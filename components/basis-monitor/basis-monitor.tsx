@@ -24,6 +24,9 @@ function formatDay(seconds: number | null): string | null {
 function basisChip(row: BasisRow) {
   if (row.basisBps === null) return { label: "no data", className: styles.basisFlat };
   const rounded = Math.round(row.basisBps * 10) / 10;
+  if (row.stalePrint) {
+    return { label: `${rounded >= 0 ? "+" : ""}${rounded.toFixed(1)} bps · pre-close print`, className: styles.basisOutlier };
+  }
   if (Math.abs(rounded) >= OUTLIER_BPS) {
     return { label: `${rounded >= 0 ? "+" : ""}${rounded.toFixed(0)} bps · split or stale print`, className: styles.basisOutlier };
   }
@@ -33,7 +36,9 @@ function basisChip(row: BasisRow) {
 }
 
 export function BasisMonitor({ data }: { data: BasisData }) {
-  const clean = data.rows.filter((row) => row.basisBps !== null && Math.abs(row.basisBps) < OUTLIER_BPS);
+  const clean = data.rows.filter(
+    (row) => row.basisBps !== null && !row.stalePrint && Math.abs(row.basisBps) < OUTLIER_BPS,
+  );
   const widest = clean.length
     ? clean.reduce((max, row) => (Math.abs(row.basisBps!) > Math.abs(max.basisBps!) ? row : max))
     : null;
@@ -126,7 +131,9 @@ export function BasisMonitor({ data }: { data: BasisData }) {
             multiplier — for dividend payers (AAPL, SPY), part of a persistent premium is accrued dividends, and the
             multiplier endpoint requires an API key, so it is not applied here. Non-payers (TSLA, MSTR, CRCL) are clean
             reads. Gaps beyond ±{OUTLIER_BPS} bps are flagged and sorted last — at that size the cause is usually a
-            stock split carried in the multiplier or a thin, stale token print, not weekend pricing. Informational only
+            stock split carried in the multiplier or a thin, stale token print, not weekend pricing. Token prints older
+            than the underlying&rsquo;s close are flagged &ldquo;pre-close print&rdquo; and excluded from the headline —
+            they compare a pre-close token price to the close, so they say nothing about the weekend. Informational only
             — not pricing or investment advice. Independent prototype by Zachary Roth, not
             affiliated with Ondo Finance. <a href="/" className={styles.inlineLink}>See the integration edge-case lab <ArrowUpRight size={12} /></a>
           </p>

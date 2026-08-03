@@ -7,6 +7,7 @@ export type BasisRow = {
   underlyingClose: number | null;
   underlyingCloseTime: number | null;
   basisBps: number | null;
+  stalePrint: boolean;
 };
 
 export type BasisData = {
@@ -73,6 +74,21 @@ async function fetchSparkChunk(tickers: string[]): Promise<Record<string, SparkC
   }
 }
 
+async function fetchSessionCloseTime(): Promise<number | null> {
+  try {
+    const res = await fetch("https://query1.finance.yahoo.com/v8/finance/chart/SPY?range=1d&interval=1d", {
+      headers: { "User-Agent": "Mozilla/5.0 (basis-monitor)" },
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { chart?: { result?: { meta?: { regularMarketTime?: number } }[] } };
+    const time = json.chart?.result?.[0]?.meta?.regularMarketTime;
+    return typeof time === "number" ? time : null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchSparkCloses(tickers: string[]): Promise<Record<string, SparkClose>> {
   const chunks: string[][] = [];
   for (let i = 0; i < tickers.length; i += 20) chunks.push(tickers.slice(i, i + 20));
@@ -98,15 +114,27 @@ export async function loadBasisData(): Promise<BasisData> {
       tokenUpdatedAt: item.last_updated ? Math.floor(Date.parse(item.last_updated) / 1000) : null,
     }));
 
-  const closes = await fetchSparkCloses(items.map((item) => item.ticker));
+  const [closes, sessionCloseTime] = await Promise.all([
+    fetchSparkCloses(items.map((item) => item.ticker)),
+    fetchSessionCloseTime(),
+  ]);
 
   const rows: BasisRow[] = items.map((item) => {
     const close = closes[item.ticker] ?? null;
     const underlyingClose = close?.close ?? null;
+    // Spark bar timestamps mark the session OPEN; the true close moment comes
+    // from SPY's regularMarketTime, falling back to open + 6.5h.
+    const closeMoment =
+      sessionCloseTime ?? (close?.time != null ? close.time + 23400 : null);
     const basisBps =
       item.tokenPrice !== null && underlyingClose !== null && underlyingClose > 0
         ? ((item.tokenPrice - underlyingClose) / underlyingClose) * 10000
         : null;
+    const stalePrint =
+      basisBps !== null &&
+      item.tokenUpdatedAt !== null &&
+      closeMoment !== null &&
+      item.tokenUpdatedAt < closeMoment;
     return {
       symbol: `${item.ticker}on`,
       name: item.name,
@@ -114,12 +142,14 @@ export async function loadBasisData(): Promise<BasisData> {
       tokenPrice: item.tokenPrice,
       tokenUpdatedAt: item.tokenUpdatedAt,
       underlyingClose,
-      underlyingCloseTime: close?.time ?? null,
+      underlyingCloseTime: closeMoment,
       basisBps,
+      stalePrint,
     };
   });
 
-  const rank = (row: BasisRow) => (row.basisBps === null ? 2 : Math.abs(row.basisBps) >= OUTLIER_BPS ? 1 : 0);
+  const rank = (row: BasisRow) =>
+    row.basisBps === null ? 3 : row.stalePrint ? 2 : Math.abs(row.basisBps) >= OUTLIER_BPS ? 1 : 0;
   rows.sort((a, b) => {
     const rankDiff = rank(a) - rank(b);
     if (rankDiff !== 0) return rankDiff;
