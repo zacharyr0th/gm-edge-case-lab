@@ -104,6 +104,39 @@ export function EdgeCaseLab() {
           </div>
         </section>
 
+        <section className={styles.explainer}>
+          <div className={styles.explainerWhat}>
+            <span>What is this?</span>
+            <p>
+              Ondo Stocks are tokenized U.S. equities with a public API. Wallets, exchanges, and fintech apps integrate
+              that API to show and trade them — and integrations usually get built for the happy path: market open,
+              fresh prices, one stock per token. Production is messier: weekends, earnings halts, dividends, rate
+              limits, schema changes.
+            </p>
+            <p>
+              Each row below is one real state taken from Ondo&rsquo;s own docs and API contract. Open it to see the
+              exact API response, watch a happy-path integration mishandle it — the parser runs live in your browser —
+              and read what to ship instead.
+            </p>
+          </div>
+          <div className={styles.explainerLegend}>
+            <span>How to read the verdicts</span>
+            <div>
+              <span className={`${styles.verdictChip} ${styles.verdictCrashes}`}><CircleX size={13} strokeWidth={2.2} /> Crashes</span>
+              <p>The integration throws — users see a broken screen.</p>
+            </div>
+            <div>
+              <span className={`${styles.verdictChip} ${styles.verdictWrong}`}><TriangleAlert size={13} strokeWidth={2.2} /> Silently wrong</span>
+              <p>It renders fine but tells users something false.</p>
+            </div>
+            <div>
+              <span className={`${styles.verdictChip} ${styles.verdictDegraded}`}><CircleAlert size={13} strokeWidth={2.2} /> Degraded</span>
+              <p>It survives but handles the failure badly.</p>
+            </div>
+            <p className={styles.explainerHint}>&ldquo;Audit as&rdquo; switches whose consequences each row shows.</p>
+          </div>
+        </section>
+
         <section className={styles.controls}>
           <div className={styles.modePicker} role="group" aria-label="Integration type">
             <span>Audit as</span>
