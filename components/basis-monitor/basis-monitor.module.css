@@ -11,6 +11,8 @@
   --mint-ink: #12724a;
   --red: #c03a2b;
   --red-bg: #fbeeec;
+  --amber: #925e06;
+  --amber-bg: #fdf3e0;
   min-height: 100dvh;
   background: #fff;
   color: var(--ink);
@@ -55,7 +57,8 @@
 .heroStat strong { color: #86e3b6; font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 22px; font-weight: 500; }
 .heroStat em { color: #b5d8c6; font-size: 13px; font-style: normal; }
 
-.table { margin-top: 26px; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: white; }
+.tableNote { margin: 26px 0 0; color: var(--muted); font-size: 13px; }
+.table { margin-top: 12px; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: white; }
 .row { display: grid; grid-template-columns: minmax(150px, 1.3fr) 1fr 1fr 1.35fr 1fr; gap: 12px; align-items: center; padding: 15px 20px; }
 .row + .row { border-top: 1px solid var(--line); }
 .rowHead { padding: 12px 20px; background: var(--panel-soft); color: var(--muted); font-size: 10px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
@@ -67,6 +70,7 @@
 .basisPremium { background: var(--mint); color: var(--mint-ink); }
 .basisDiscount { background: var(--red-bg); color: var(--red); }
 .basisFlat { background: var(--panel); color: var(--muted); }
+.basisOutlier { background: var(--amber-bg); color: var(--amber); }
 .updated { color: var(--muted); font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 11.5px; }
 
 .sources { display: grid; gap: 8px; margin-top: 18px; }

@@ -1,19 +1,3 @@
-export type BasisAsset = {
-  symbol: string;
-  name: string;
-  ticker: string;
-  coingeckoId: string;
-};
-
-export const basisAssets: BasisAsset[] = [
-  { symbol: "AAPLon", name: "Apple", ticker: "AAPL", coingeckoId: "apple-ondo-tokenized-stock" },
-  { symbol: "TSLAon", name: "Tesla", ticker: "TSLA", coingeckoId: "tesla-ondo-tokenized-stock" },
-  { symbol: "NVDAon", name: "NVIDIA", ticker: "NVDA", coingeckoId: "nvidia-ondo-tokenized-stock" },
-  { symbol: "MSTRon", name: "MicroStrategy", ticker: "MSTR", coingeckoId: "microstrategy-ondo-tokenized-stock" },
-  { symbol: "CRCLon", name: "Circle", ticker: "CRCL", coingeckoId: "circle-internet-group-ondo-tokenized-stock" },
-  { symbol: "SPYon", name: "SPDR S&P 500 ETF", ticker: "SPY", coingeckoId: "spdr-s-p-500-etf-ondo-tokenized-etf" },
-];
-
 export type BasisRow = {
   symbol: string;
   name: string;
@@ -31,73 +15,121 @@ export type BasisData = {
   yahooOk: boolean;
 };
 
-type CoingeckoPrices = Record<string, { usd?: number; last_updated_at?: number }>;
+export const OUTLIER_BPS = 500;
 
-async function fetchCoingecko(): Promise<CoingeckoPrices | null> {
+type MarketItem = {
+  id: string;
+  symbol: string;
+  name: string;
+  current_price: number | null;
+  last_updated: string | null;
+};
+
+async function fetchMarketsPage(page: number): Promise<MarketItem[] | null> {
   try {
-    const ids = basisAssets.map((asset) => asset.coingeckoId).join(",");
     const res = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_last_updated_at=true`,
+      `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=ondo-tokenized-assets&per_page=250&page=${page}`,
       { next: { revalidate: 300 } },
     );
     if (!res.ok) return null;
-    return (await res.json()) as CoingeckoPrices;
+    return (await res.json()) as MarketItem[];
   } catch {
     return null;
   }
 }
 
-type YahooClose = { close: number; time: number | null };
+async function fetchOndoMarkets(): Promise<MarketItem[] | null> {
+  const first = await fetchMarketsPage(1);
+  if (first === null) return null;
+  if (first.length < 250) return first;
+  const second = await fetchMarketsPage(2);
+  return second === null ? first : [...first, ...second];
+}
 
-async function fetchYahooClose(ticker: string): Promise<YahooClose | null> {
+type SparkClose = { close: number; time: number | null };
+
+async function fetchSparkChunk(tickers: string[]): Promise<Record<string, SparkClose>> {
   try {
-    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1d&interval=1d`, {
-      headers: { "User-Agent": "Mozilla/5.0 (basis-monitor)" },
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as {
-      chart?: { result?: { meta?: { regularMarketPrice?: number; regularMarketTime?: number } }[] };
-    };
-    const meta = json.chart?.result?.[0]?.meta;
-    if (typeof meta?.regularMarketPrice !== "number") return null;
-    return { close: meta.regularMarketPrice, time: typeof meta.regularMarketTime === "number" ? meta.regularMarketTime : null };
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/spark?symbols=${tickers.join(",")}&range=1d&interval=1d`,
+      { headers: { "User-Agent": "Mozilla/5.0 (basis-monitor)" }, next: { revalidate: 300 } },
+    );
+    if (!res.ok) return {};
+    const json = (await res.json()) as Record<string, { timestamp?: number[]; close?: (number | null)[] }>;
+    const out: Record<string, SparkClose> = {};
+    for (const [ticker, series] of Object.entries(json)) {
+      const closes = series?.close ?? [];
+      for (let i = closes.length - 1; i >= 0; i--) {
+        const value = closes[i];
+        if (typeof value === "number") {
+          out[ticker] = { close: value, time: series.timestamp?.[i] ?? null };
+          break;
+        }
+      }
+    }
+    return out;
   } catch {
-    return null;
+    return {};
   }
+}
+
+async function fetchSparkCloses(tickers: string[]): Promise<Record<string, SparkClose>> {
+  const chunks: string[][] = [];
+  for (let i = 0; i < tickers.length; i += 20) chunks.push(tickers.slice(i, i + 20));
+  const out: Record<string, SparkClose> = {};
+  for (let i = 0; i < chunks.length; i += 8) {
+    const batch = chunks.slice(i, i + 8);
+    const results = await Promise.all(batch.map((chunk) => fetchSparkChunk(chunk)));
+    Object.assign(out, ...results);
+  }
+  return out;
 }
 
 export async function loadBasisData(): Promise<BasisData> {
-  const [prices, closes] = await Promise.all([
-    fetchCoingecko(),
-    Promise.all(basisAssets.map((asset) => fetchYahooClose(asset.ticker))),
-  ]);
+  const markets = await fetchOndoMarkets();
+  if (markets === null) return { rows: [], coingeckoOk: false, yahooOk: false };
 
-  const rows: BasisRow[] = basisAssets.map((asset, index) => {
-    const price = prices?.[asset.coingeckoId];
-    const tokenPrice = typeof price?.usd === "number" ? price.usd : null;
-    const tokenUpdatedAt = typeof price?.last_updated_at === "number" ? price.last_updated_at : null;
-    const close = closes[index];
+  const items = markets
+    .filter((item) => (item.symbol ?? "").toUpperCase().endsWith("ON"))
+    .map((item) => ({
+      ticker: item.symbol.toUpperCase().slice(0, -2),
+      name: item.name.replace(/\s*\(Ondo Tokenized[^)]*\)\s*$/, ""),
+      tokenPrice: typeof item.current_price === "number" ? item.current_price : null,
+      tokenUpdatedAt: item.last_updated ? Math.floor(Date.parse(item.last_updated) / 1000) : null,
+    }));
+
+  const closes = await fetchSparkCloses(items.map((item) => item.ticker));
+
+  const rows: BasisRow[] = items.map((item) => {
+    const close = closes[item.ticker] ?? null;
     const underlyingClose = close?.close ?? null;
     const basisBps =
-      tokenPrice !== null && underlyingClose !== null && underlyingClose > 0
-        ? ((tokenPrice - underlyingClose) / underlyingClose) * 10000
+      item.tokenPrice !== null && underlyingClose !== null && underlyingClose > 0
+        ? ((item.tokenPrice - underlyingClose) / underlyingClose) * 10000
         : null;
     return {
-      symbol: asset.symbol,
-      name: asset.name,
-      ticker: asset.ticker,
-      tokenPrice,
-      tokenUpdatedAt,
+      symbol: `${item.ticker}on`,
+      name: item.name,
+      ticker: item.ticker,
+      tokenPrice: item.tokenPrice,
+      tokenUpdatedAt: item.tokenUpdatedAt,
       underlyingClose,
       underlyingCloseTime: close?.time ?? null,
       basisBps,
     };
   });
 
+  const rank = (row: BasisRow) => (row.basisBps === null ? 2 : Math.abs(row.basisBps) >= OUTLIER_BPS ? 1 : 0);
+  rows.sort((a, b) => {
+    const rankDiff = rank(a) - rank(b);
+    if (rankDiff !== 0) return rankDiff;
+    if (a.basisBps === null || b.basisBps === null) return a.symbol.localeCompare(b.symbol);
+    return Math.abs(b.basisBps) - Math.abs(a.basisBps);
+  });
+
   return {
     rows,
-    coingeckoOk: prices !== null,
-    yahooOk: closes.some((close) => close !== null),
+    coingeckoOk: true,
+    yahooOk: Object.keys(closes).length > 0,
   };
 }

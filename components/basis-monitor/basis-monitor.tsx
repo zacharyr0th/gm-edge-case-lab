@@ -1,5 +1,5 @@
 import { ArrowUpRight, Clock3 } from "lucide-react";
-import type { BasisData, BasisRow } from "@/lib/basis-data";
+import { OUTLIER_BPS, type BasisData, type BasisRow } from "@/lib/basis-data";
 import styles from "./basis-monitor.module.css";
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
@@ -24,15 +24,18 @@ function formatDay(seconds: number | null): string | null {
 function basisChip(row: BasisRow) {
   if (row.basisBps === null) return { label: "no data", className: styles.basisFlat };
   const rounded = Math.round(row.basisBps * 10) / 10;
+  if (Math.abs(rounded) >= OUTLIER_BPS) {
+    return { label: `${rounded >= 0 ? "+" : ""}${rounded.toFixed(0)} bps · split or stale print`, className: styles.basisOutlier };
+  }
   if (Math.abs(rounded) < 2) return { label: `${rounded >= 0 ? "+" : ""}${rounded.toFixed(1)} bps · flat`, className: styles.basisFlat };
   if (rounded > 0) return { label: `+${rounded.toFixed(1)} bps premium`, className: styles.basisPremium };
   return { label: `${rounded.toFixed(1)} bps discount`, className: styles.basisDiscount };
 }
 
 export function BasisMonitor({ data }: { data: BasisData }) {
-  const withBasis = data.rows.filter((row) => row.basisBps !== null);
-  const widest = withBasis.length
-    ? withBasis.reduce((max, row) => (Math.abs(row.basisBps!) > Math.abs(max.basisBps!) ? row : max))
+  const clean = data.rows.filter((row) => row.basisBps !== null && Math.abs(row.basisBps) < OUTLIER_BPS);
+  const widest = clean.length
+    ? clean.reduce((max, row) => (Math.abs(row.basisBps!) > Math.abs(max.basisBps!) ? row : max))
     : null;
 
   return (
@@ -64,11 +67,17 @@ export function BasisMonitor({ data }: { data: BasisData }) {
             <div className={styles.heroStat}>
               <span>Widest basis right now</span>
               <strong>{basisChip(widest).label}</strong>
-              <em>{widest.symbol} vs {widest.ticker}</em>
+              <em>{widest.symbol} vs {widest.ticker} · {data.rows.length} assets tracked</em>
             </div>
           ) : null}
         </section>
 
+        {data.rows.length ? (
+          <p className={styles.tableNote}>
+            All {data.rows.length} GM tokens in CoinGecko&rsquo;s &ldquo;Ondo Tokenized Assets&rdquo; category, sorted
+            by widest basis.
+          </p>
+        ) : null}
         <section className={styles.table} aria-label="Weekend basis by asset">
           <div className={`${styles.row} ${styles.rowHead}`}>
             <span>Asset</span>
@@ -109,13 +118,16 @@ export function BasisMonitor({ data }: { data: BasisData }) {
         <footer className={styles.methodology}>
           <span>Methodology</span>
           <p>
-            Token prices come from CoinGecko (Ondo&rsquo;s asset metadata publishes a coingeckoId per token); underlying
-            closes come from Yahoo Finance. Data refreshes about every 5 minutes. During U.S. market hours the
+            Assets are discovered live from CoinGecko&rsquo;s &ldquo;Ondo Tokenized Assets&rdquo; category; each
+            underlying ticker derives from the token&rsquo;s &ldquo;on&rdquo; suffix, and closes come from Yahoo Finance
+            (tickers Yahoo can&rsquo;t match show &ldquo;no data&rdquo;). Data refreshes about every 5 minutes. During U.S. market hours the
             &ldquo;last close&rdquo; is the live regular-session price, so the basis is most meaningful on nights and
             weekends. Known residual: the basis assumes 1 token = 1 share, but GM tokens accrue dividends via a shares
             multiplier — for dividend payers (AAPL, SPY), part of a persistent premium is accrued dividends, and the
             multiplier endpoint requires an API key, so it is not applied here. Non-payers (TSLA, MSTR, CRCL) are clean
-            reads. Informational only — not pricing or investment advice. Independent prototype by Zachary Roth, not
+            reads. Gaps beyond ±{OUTLIER_BPS} bps are flagged and sorted last — at that size the cause is usually a
+            stock split carried in the multiplier or a thin, stale token print, not weekend pricing. Informational only
+            — not pricing or investment advice. Independent prototype by Zachary Roth, not
             affiliated with Ondo Finance. <a href="/" className={styles.inlineLink}>See the integration edge-case lab <ArrowUpRight size={12} /></a>
           </p>
         </footer>
