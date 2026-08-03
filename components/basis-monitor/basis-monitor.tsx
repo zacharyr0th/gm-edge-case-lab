@@ -11,9 +11,14 @@ const utcTime = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
   hour12: false,
 });
+const utcDay = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" });
 
 function formatUtc(seconds: number | null): string {
   return seconds === null ? "—" : `${utcTime.format(new Date(seconds * 1000))} UTC`;
+}
+
+function formatDay(seconds: number | null): string | null {
+  return seconds === null ? null : utcDay.format(new Date(seconds * 1000));
 }
 
 function basisChip(row: BasisRow) {
@@ -52,7 +57,7 @@ export function BasisMonitor({ data }: { data: BasisData }) {
             <h1>Is the weekend priced in?</h1>
             <p>
               When U.S. markets close, GM tokens keep trading. This page charts the gap: token price vs the
-              underlying&rsquo;s last close. That gap is the number Ondo&rsquo;s off-hours limits exist to protect.
+              underlying&rsquo;s last close. That gap is the risk Ondo&rsquo;s off-hours exposure limits manage.
             </p>
           </div>
           {widest ? (
@@ -81,7 +86,10 @@ export function BasisMonitor({ data }: { data: BasisData }) {
                   <span>{row.name}</span>
                 </div>
                 <span className={styles.price}>{row.tokenPrice === null ? "—" : usd.format(row.tokenPrice)}</span>
-                <span className={styles.price}>{row.underlyingClose === null ? "—" : usd.format(row.underlyingClose)}</span>
+                <span className={styles.price}>
+                  {row.underlyingClose === null ? "—" : usd.format(row.underlyingClose)}
+                  {formatDay(row.underlyingCloseTime) ? <em className={styles.closeDay}>{formatDay(row.underlyingCloseTime)}</em> : null}
+                </span>
                 <span className={`${styles.basis} ${chip.className}`}>{chip.label}</span>
                 <span className={styles.updated}>{formatUtc(row.tokenUpdatedAt)}</span>
               </div>
@@ -104,8 +112,11 @@ export function BasisMonitor({ data }: { data: BasisData }) {
             Token prices come from CoinGecko (Ondo&rsquo;s asset metadata publishes a coingeckoId per token); underlying
             closes come from Yahoo Finance. Data refreshes about every 5 minutes. During U.S. market hours the
             &ldquo;last close&rdquo; is the live regular-session price, so the basis is most meaningful on nights and
-            weekends. Informational only — not pricing or investment advice. Independent prototype by Zachary Roth,
-            not affiliated with Ondo Finance. <a href="/" className={styles.inlineLink}>See the integration edge-case lab <ArrowUpRight size={12} /></a>
+            weekends. Known residual: the basis assumes 1 token = 1 share, but GM tokens accrue dividends via a shares
+            multiplier — for dividend payers (AAPL, SPY), part of a persistent premium is accrued dividends, and the
+            multiplier endpoint requires an API key, so it is not applied here. Non-payers (TSLA, MSTR, CRCL) are clean
+            reads. Informational only — not pricing or investment advice. Independent prototype by Zachary Roth, not
+            affiliated with Ondo Finance. <a href="/" className={styles.inlineLink}>See the integration edge-case lab <ArrowUpRight size={12} /></a>
           </p>
         </footer>
       </main>
