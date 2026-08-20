@@ -40,6 +40,25 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
+const FIXTURES_URL = "https://ondo-integration-lab.vercel.app/fixtures.json";
+
+/** Written as lines so the braces and backticks survive being pasted out of the page. */
+const testHarness = [
+  'import { describe, expect, test } from "bun:test";',
+  'import fixtures from "./fixtures.json";',
+  'import { handleOndoResponse } from "../src/ondo";',
+  "",
+  "for (const condition of fixtures.conditions) {",
+  "  describe(condition.id + \" — \" + condition.title, () => {",
+  "    for (const fixture of condition.fixtures) {",
+  "      test(fixture.label, () => {",
+  "        expect(() => handleOndoResponse(fixture.body)).not.toThrow();",
+  "      });",
+  "    }",
+  "  });",
+  "}",
+].join("\n");
+
 const verdictMeta: Record<
   LabVerdict,
   { label: string; icon: typeof CircleX; className: string; explain: string }
@@ -481,6 +500,47 @@ export function EdgeCaseLab() {
                 <p className="text-muted-foreground mt-1 text-[11px]">{endpoint.note}</p>
               </div>
             ))}
+          </CollapsibleContent>
+        </Collapsible>
+
+        <Collapsible className="mt-3 rounded-lg border">
+          <CollapsibleTrigger className="text-muted-foreground flex w-full items-center gap-2 px-4 py-3 text-xs [&[data-state=open]>svg:last-child]:rotate-180">
+            Use these fixtures in your own tests
+            <ChevronDown className="ml-auto size-4 transition-transform" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-3 px-4 pb-4">
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              Every payload on this page is exported as one file, rebuilt from the same data the matrix renders.
+              Pull it into your repo:
+            </p>
+            <div className="bg-muted/60 rounded-lg border">
+              <div className="flex items-center justify-between gap-2 border-b px-3 py-1.5">
+                <code className="text-muted-foreground font-mono text-[10px]">shell</code>
+                <CopyButton text={`curl -O ${FIXTURES_URL}`} label="Copy" />
+              </div>
+              <pre className="overflow-x-auto px-3 py-2.5 font-mono text-[10px] leading-relaxed">
+                {`curl -O ${FIXTURES_URL}`}
+              </pre>
+            </div>
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              Then loop it. No package to install and nothing to keep in sync — the file carries every condition,
+              its fixtures, and a permalink back to the row that explains it.
+            </p>
+            <div className="bg-muted/60 rounded-lg border">
+              <div className="flex items-center justify-between gap-2 border-b px-3 py-1.5">
+                <code className="text-muted-foreground font-mono text-[10px]">ondo.test.ts</code>
+                <CopyButton text={testHarness} label="Copy" />
+              </div>
+              <pre className="overflow-x-auto px-3 py-2.5 font-mono text-[10px] leading-relaxed">{testHarness}</pre>
+            </div>
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              That asserts your client survives every payload, which is the whole test for the{" "}
+              <strong className="text-foreground">{counts.crashes}</strong> conditions that throw. The other{" "}
+              <strong className="text-foreground">{counts.wrong + counts.degraded}</strong> fail quietly — nothing
+              throws, the answer is just wrong — so those need an assertion about your own behaviour. Each row lists
+              what to ship instead, and <code className="font-mono">shipInstead</code> carries the same lines in the
+              export.
+            </p>
           </CollapsibleContent>
         </Collapsible>
 

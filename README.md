@@ -51,6 +51,36 @@ One group of checks is deliberately inverted. It pins places where Ondo's own do
 
 Last run: 2026-08-20, all 58 claims held.
 
+## Using the fixtures
+
+Every payload the matrix renders is exported as one file, rebuilt on each deploy from the same data:
+
+```bash
+curl -O https://ondo-integration-lab.vercel.app/fixtures.json
+```
+
+It carries all 25 conditions — id, verdict, the assumption that breaks, what to ship instead, the endpoints, a permalink back to the row, and the fixture bodies. Loop it against your own client:
+
+```ts
+import { describe, expect, test } from "bun:test";
+import fixtures from "./fixtures.json";
+import { handleOndoResponse } from "../src/ondo";
+
+for (const condition of fixtures.conditions) {
+  describe(condition.id, () => {
+    for (const fixture of condition.fixtures) {
+      test(fixture.label, () => {
+        expect(() => handleOndoResponse(fixture.body)).not.toThrow();
+      });
+    }
+  });
+}
+```
+
+That is the whole test for the three conditions that throw. The other twenty-two fail quietly — nothing throws, the answer is just wrong — so those need an assertion about your own behaviour, and `shipInstead` says what that behaviour is.
+
+There is no package to install. The export is the interface.
+
 ## Basis monitor
 
 `/basis` charts the premium or discount of GM tokens against each underlying's latest completed U.S. close. Assets come from CoinGecko's "Ondo Tokenized Assets" category; closes come from Yahoo Finance.
