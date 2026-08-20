@@ -39,7 +39,7 @@ export function GET() {
         userCopy: check.userCopy,
         endpoints: check.endpoints,
         doc: check.doc,
-        permalink: `${SITE}/#${check.id}`,
+        permalink: `${SITE}/lab#${check.id}`,
         fixtures: check.fixtures,
       })),
     },
