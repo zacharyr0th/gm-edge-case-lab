@@ -309,7 +309,7 @@ export function EdgeCaseLab() {
           <span className="text-muted-foreground ml-auto flex items-center gap-3">
             <span>{verifiedOn}</span>
             <a
-              href="https://github.com/zacharyr0th/gm-edge-case-lab/actions/workflows/verify-contract.yml"
+              href="https://github.com/zacharyr0th/ondo-integration-lab/actions/workflows/verify-contract.yml"
               target="_blank"
               rel="noreferrer"
               className="hover:text-foreground inline-flex items-center gap-1 underline underline-offset-2"
@@ -317,7 +317,7 @@ export function EdgeCaseLab() {
               CI <ArrowUpRight className="size-3.5" />
             </a>
             <a
-              href="https://github.com/zacharyr0th/gm-edge-case-lab/blob/main/scripts/verify-contract.ts"
+              href="https://github.com/zacharyr0th/ondo-integration-lab/blob/main/scripts/verify-contract.ts"
               target="_blank"
               rel="noreferrer"
               className="hover:text-foreground inline-flex items-center gap-1 underline underline-offset-2"

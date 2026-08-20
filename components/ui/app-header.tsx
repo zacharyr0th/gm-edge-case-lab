@@ -16,11 +16,11 @@ export function AppHeader({ active }: { active: "basis" | "lab" }) {
       <div className="mx-auto grid w-full max-w-[1384px] grid-cols-[1fr_auto] items-center gap-3 px-5 py-3 sm:px-6 md:grid-cols-[minmax(200px,1fr)_auto_minmax(200px,1fr)]">
         <Link href={isBasis ? "/basis" : "/"} className="flex min-w-0 items-center gap-2.5">
           <span className="bg-foreground text-background flex size-7 shrink-0 items-center justify-center rounded-md text-[11px] font-bold max-md:hidden">
-            GM
+            ON
           </span>
           <span className="min-w-0">
             <h1 className="truncate text-sm font-semibold tracking-tight">
-              {isBasis ? "GM Off-Hours Monitor" : "GM Edge-Case Lab"}
+              {isBasis ? "GM Off-Hours Monitor" : "Ondo Integration Lab"}
             </h1>
             <span className="text-muted-foreground block truncate text-[11px] max-md:hidden">
               {isBasis ? "Weekend price dislocation" : "Integration compatibility"}

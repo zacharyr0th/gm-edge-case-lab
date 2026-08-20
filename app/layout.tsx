@@ -22,9 +22,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "GM Edge-Case Lab",
+  title: "Ondo Integration Lab",
   description:
-    "Unofficial compatibility suite: documented Ondo Stocks production states replayed against a happy-path integration.",
+    "Unofficial compatibility suite: documented Ondo Stocks and Ondo Perps production states replayed against a happy-path integration.",
   robots: { index: false, follow: false },
 };
 

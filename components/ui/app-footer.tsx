@@ -10,7 +10,7 @@ export function AppFooter({ page }: { page: keyof typeof sourceNote }) {
       <span>
         {sourceNote[page]}{" "}
         <a
-          href="https://github.com/zacharyr0th/gm-edge-case-lab"
+          href="https://github.com/zacharyr0th/ondo-integration-lab"
           target="_blank"
           rel="noreferrer"
           className="hover:text-foreground underline underline-offset-2"
