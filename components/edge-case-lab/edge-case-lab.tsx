@@ -9,6 +9,7 @@ import {
   CircleAlert,
   CircleX,
   ClipboardCheck,
+  ShieldCheck,
   Copy,
   Link2,
   RotateCcw,
@@ -21,7 +22,9 @@ import {
   integrationModes,
   labChecks,
   labEndpointDirectory,
+  labStreamDirectory,
   runNaive,
+  verification,
   type IntegrationMode,
   type LabCheck,
   type LabRun,
@@ -247,6 +250,18 @@ export function EdgeCaseLab() {
     [],
   );
 
+  const verifiedOn = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(
+        new Date(verification.verifiedAt),
+      ),
+    [],
+  );
+  const verificationSources = useMemo(
+    () => verification.sources.map((source) => source.label).join(" · "),
+    [],
+  );
+
   return (
     <div className="flex min-h-dvh flex-col">
       <AppHeader active="lab" />
@@ -259,7 +274,7 @@ export function EdgeCaseLab() {
           <div className="min-w-0">
             <strong className="block text-sm">Production matrix sign-off</strong>
             <span className="text-muted-foreground text-xs">
-              Twelve public-docs-derived launch conditions for Ondo Stocks partner products.
+              {labChecks.length} public-docs-derived launch conditions for Ondo Stocks partner products.
             </span>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -277,11 +292,46 @@ export function EdgeCaseLab() {
           </div>
         </section>
 
+        <section
+          className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border px-4 py-2.5 text-xs"
+          aria-label="Contract verification"
+        >
+          <ShieldCheck className={verification.ok ? "text-premium size-4" : "text-destructive size-4"} />
+          <span>
+            <strong className="text-foreground">{verification.claimChecks}</strong> claims re-checked against{" "}
+            <strong className="text-foreground">{verification.sources.length}</strong> live Ondo sources —{" "}
+            {verification.ok ? "all holding" : `${verification.failures.length} drifted`}
+          </span>
+          <span className="text-muted-foreground hidden sm:inline">
+            {verificationSources}
+          </span>
+          <span className="text-muted-foreground ml-auto flex items-center gap-3">
+            <span>{verifiedOn}</span>
+            <a
+              href="https://github.com/zacharyr0th/gm-edge-case-lab/actions/workflows/verify-contract.yml"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-foreground inline-flex items-center gap-1 underline underline-offset-2"
+            >
+              CI <ArrowUpRight className="size-3.5" />
+            </a>
+            <a
+              href="https://github.com/zacharyr0th/gm-edge-case-lab/blob/main/scripts/verify-contract.ts"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-foreground inline-flex items-center gap-1 underline underline-offset-2"
+            >
+              Source <ArrowUpRight className="size-3.5" />
+            </a>
+          </span>
+        </section>
+
         <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0">
             <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
               <span><strong className="text-foreground">{labChecks.length}</strong> production states</span>
               <span><strong className="text-foreground">{labEndpointDirectory.length}</strong> API endpoints</span>
+              <span><strong className="text-foreground">{labStreamDirectory.length}</strong> stream RPCs</span>
               <span><strong className="text-foreground">3</strong> chains</span>
               <span>
                 <strong className="text-foreground">{counts.crashes}</strong> crash ·{" "}
@@ -468,11 +518,11 @@ export function EdgeCaseLab() {
 
         <Collapsible className="mt-6 rounded-lg border">
           <CollapsibleTrigger className="text-muted-foreground flex w-full items-center gap-2 px-4 py-3 text-xs [&[data-state=open]>svg:last-child]:rotate-180">
-            {labEndpointDirectory.length} endpoints in the contract surface
+            {labEndpointDirectory.length + labStreamDirectory.length} endpoints and RPCs in the contract surface
             <ChevronDown className="ml-auto size-4 transition-transform" />
           </CollapsibleTrigger>
           <CollapsibleContent className="grid gap-2 px-4 pb-4 sm:grid-cols-2 lg:grid-cols-3">
-            {labEndpointDirectory.map((endpoint) => (
+            {[...labEndpointDirectory, ...labStreamDirectory].map((endpoint) => (
               <div key={endpoint.path} className="rounded-md border p-2.5">
                 <code className="font-mono text-[10px] break-words">{endpoint.path}</code>
                 <p className="text-muted-foreground mt-1 text-[11px]">{endpoint.note}</p>
@@ -487,7 +537,8 @@ export function EdgeCaseLab() {
             <ChevronDown className="ml-auto size-4 transition-transform" />
           </CollapsibleTrigger>
           <CollapsibleContent className="text-muted-foreground px-4 pb-4 text-xs leading-relaxed">
-            Fixtures mirror Ondo&rsquo;s published OpenAPI contract and announced changes. Values are illustrative;
+            Fixtures mirror Ondo&rsquo;s published OpenAPI contract, the streaming <code className="font-mono">.proto</code>,
+            the Error Codes page, and announced changes. Values are illustrative;
             the live API requires an <code className="font-mono">x-api-key</code>. Independent prototype by Zachary
             Roth, not affiliated with Ondo Finance.
           </CollapsibleContent>

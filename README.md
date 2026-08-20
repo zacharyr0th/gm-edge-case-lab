@@ -1,14 +1,20 @@
 # GM Edge-Case Lab
 
-A one-page compatibility suite for [Ondo Stocks (Global Markets)](https://docs.ondo.finance/) API integrations, served at `/`. It replays 12 documented production states — schema evolution, market and session state, corporate actions, limits, quotes, and chain infrastructure — against a happy-path integration, executes the failure in your browser, and shows what to ship instead.
+A one-page compatibility suite for [Ondo Stocks (Global Markets)](https://docs.ondo.finance/) API integrations, served at `/`. It replays 20 documented production states — schema evolution, market and session state, corporate actions, limits, quotes, chain infrastructure, and the gRPC streams — against a happy-path integration, executes the failure in your browser, and shows what to ship instead.
 
 Each state includes the wrong assumption, the actual runtime result, the correct handling, impact by integrator type (wallet, exchange, fintech app), suggested user-facing copy, the endpoints involved, and the contract-faithful fixture payload.
 
 Filter by area, and link straight to a single condition — every row has a stable id and a copy-link button, so `#dividend-multiplier` opens that condition on load. Fixtures are copyable as JSON.
 
+## Streaming
+
+The OpenAPI document describes 20 REST endpoints. It does not mention the streaming surface at all: four gRPC RPCs at `grpc.gm.ondo.finance:443`, published separately as a `.proto`. Four conditions cover it, because it is where the unit and lifecycle assumptions break — timestamps are nanoseconds there and milliseconds over REST, OHLC candles are revised in place until `is_closed`, the stream never backfills after a reconnect, and depth `bids` are the redeem side with marginal per-level prices.
+
 ## Weekend Basis Monitor
 
 `/basis` charts the live premium or discount of GM tokens vs each underlying's latest completed U.S. close. Assets are discovered from CoinGecko's "Ondo Tokenized Assets" category; closes come from Yahoo Finance. Basis is paused while the U.S. regular session is open, and the current session is omitted until it closes. Rows whose token-to-share ratio lands on a split-like factor are dropped, because resolving them needs Ondo's authenticated shares multiplier. Rows whose token quote predates the completed close are listed but left unpriced, because differencing them would report the underlying's own move as a dislocation. Neither group contributes to the headline count.
+
+Every reason a row carries no number is a condition the matrix documents, so the Withheld view breaks the rows down by reason and links each one to the condition that explains it. The monitor is the live instance; the lab is the explanation.
 
 ## Why
 
@@ -20,15 +26,21 @@ Fixtures are modeled field-for-field on Ondo's published OpenAPI specification (
 
 ## Verifying the contract
 
-Every condition asserts something structural about the published API — that `underlyingMarket` is nullable, that `end` is absent from the required set on an unscheduled pause, that the trading-limits reason enum has exactly eight members. Those claims rot silently when the spec moves, so they are checked rather than trusted:
+Every condition asserts something structural about the published API — that `underlyingMarket` is nullable, that `end` is absent from the required set on an unscheduled pause, that the trading-limits reason enum has exactly eight members while the Error Codes page documents six more, that stream timestamps are `uint64` nanoseconds, that depth `bids` are the redeem side. Those claims rot silently when the spec moves, so they are checked rather than trusted:
 
 ```bash
 bun run verify:contract
 ```
 
-It fetches the live spec, re-checks each claim, reports which documented endpoints the matrix does not yet cover, and exits non-zero on drift. CI runs it on every push and weekly.
+It fetches the live OpenAPI document, the published `.proto`, the Error Codes page, and the Endpoint Caching page, re-checks each claim, reports which documented endpoints the matrix does not yet cover, and exits non-zero on drift. CI runs it on every push and weekly.
 
-Last verified against the live spec on August 19, 2026: all claims held, and the basket-token rollout that conditions 01 and 02 describe has since shipped — `underlyingMarket` and `constituentTokens` are both required in the current contract.
+The usual stack for this — `oasdiff` for breaking-change detection, Spectral for linting, Schemathesis for property tests — reads one OpenAPI document and compares shapes. That misses this API in two ways. It cannot see the streaming surface or the error catalogue, because neither is in the OpenAPI document. And it cannot catch semantic drift under an unchanged shape: a `number` that changes units, an enum that is a subset of the real one. Those are the claims here.
+
+One group of checks is different in kind: it pins places where Ondo's published documents disagree with each other — a response schema that declares an object beside an array example, a field spelled two ways, a seconds example under a milliseconds description, a `Pagination` schema no endpoint references, and two different lists of which OHLC interval/range pairs are valid. Those checks fail the day Ondo fixes them, which is the signal to drop the caveat from the matrix.
+
+Each run records its result to `lib/contract-verification.json`, and the page renders that record — claim count, sources, pass or fail, run date — so a visitor sees the run rather than a claim that the checks exist.
+
+Last verified on August 20, 2026: all 46 claims held across the four sources, and the basket-token rollout that conditions 01 and 02 describe has since shipped — `underlyingMarket` and `constituentTokens` are both required in the current contract.
 
 ## Run
 
@@ -43,7 +55,7 @@ Open http://127.0.0.1:3452 for the lab, or http://127.0.0.1:3452/basis for the m
 
 | Path | What it is |
 | --- | --- |
-| `/` | The edge-case matrix. Twelve production states, each with the wrong assumption, the runtime result, the correct handling, impact by integrator type, and suggested user-facing copy. |
+| `/` | The edge-case matrix. Twenty production states, each with the wrong assumption, the runtime result, the correct handling, impact by integrator type, and suggested user-facing copy. |
 | `/basis` | The off-hours basis monitor. Live GM token quotes against each underlying's latest completed U.S. close. |
 | `/lab` | Redirect to `/`, kept so older links still resolve. |
 
