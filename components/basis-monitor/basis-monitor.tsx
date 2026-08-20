@@ -117,18 +117,32 @@ function Stat({
   label,
   value,
   hint,
+  asset,
   onSelect,
 }: {
   label: string;
   value: string;
   hint?: string;
+  /** When a card points at one asset, identify it the way every other row does. */
+  asset?: BasisRow;
   onSelect?: () => void;
 }) {
   const body = (
     <>
       <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">{label}</p>
       <p className="mt-1 font-mono text-lg leading-tight font-semibold tabular-nums">{value}</p>
-      {hint ? <p className="text-muted-foreground mt-0.5 text-[10px]">{hint}</p> : null}
+      {asset ? (
+        <span className="text-muted-foreground mt-1 flex items-center gap-1.5 font-mono text-[10px]">
+          <CompanyLogo
+            ticker={asset.ticker}
+            name={asset.name}
+            className="size-4 rounded-[3px] p-0 text-[6px]"
+          />
+          {asset.symbol}
+        </span>
+      ) : hint ? (
+        <p className="text-muted-foreground mt-0.5 text-[10px]">{hint}</p>
+      ) : null}
     </>
   );
   return (
@@ -331,13 +345,13 @@ export function BasisMonitor({ data }: { data: BasisData }) {
             <Stat
               label="Widest premium"
               value={`+${stats.widestPremium.percent.toFixed(1)}%`}
-              hint={stats.widestPremium.row.symbol}
+              asset={stats.widestPremium.row}
               onSelect={() => reveal(stats.widestPremium.row.symbol)}
             />
             <Stat
               label="Widest discount"
               value={`${stats.widestDiscount.percent.toFixed(1)}%`}
-              hint={stats.widestDiscount.row.symbol}
+              asset={stats.widestDiscount.row}
               onSelect={() => reveal(stats.widestDiscount.row.symbol)}
             />
           </section>
