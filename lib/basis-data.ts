@@ -8,9 +8,24 @@ export type BasisRow = {
   underlyingCloseTime: number | null;
   basisBps: number | null;
   multiplierRequired: boolean;
+  /** Underlying trades around the clock, so a move since the close is expected. */
+  continuousUnderlying: boolean;
   inferredMultiplier: number | null;
   basisStatus: "comparable" | "market-open" | "pre-close" | "multiplier-required" | "no-data";
 };
+
+/**
+ * Wrappers whose underlying keeps trading when U.S. equities are shut: spot
+ * crypto funds and companies whose value is mostly a crypto balance sheet. Their
+ * move since the close is the underlying's own move, so it is not evidence of a
+ * GM premium. Hand-maintained — there is no public field that marks this.
+ */
+const CONTINUOUS_UNDERLYINGS = new Set([
+  "IBIT", "FBTC", "GBTC", "BITB", "ARKB", "BTCO",
+  "ETHA", "ETHE", "FSOL", "BSOL",
+  "MSTR", "BMNR", "SBET",
+  "STRC", "STRK", "STRF", "STRD",
+]);
 
 export type BasisData = {
   rows: BasisRow[];
@@ -188,6 +203,7 @@ export async function loadBasisData(): Promise<BasisData> {
       underlyingCloseTime: closeMoment,
       basisBps,
       multiplierRequired,
+      continuousUnderlying: CONTINUOUS_UNDERLYINGS.has(item.ticker),
       inferredMultiplier,
       basisStatus,
     };

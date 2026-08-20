@@ -85,6 +85,10 @@ There is no package to install. The export is the interface.
 
 `/basis` charts the premium or discount of GM tokens against each underlying's latest completed U.S. close. Assets come from CoinGecko's "Ondo Tokenized Assets" category; closes come from Yahoo Finance.
 
+The page leads with session clocks: which GM session is live (premarket, regular, postmarket, overnight, off-hours) and whether Tokyo, Hong Kong, London, Frankfurt and New York are open. That strip is the explanation for the numbers under it. GM keeps trading after the U.S. close, and while it does, Asia and Europe take their turns — so a token that moved overnight usually moved because one of those was open.
+
+That changes what the gap column means, and the page says so. During the regular session nothing is priced. While GM trades and U.S. equities are shut, the column reads **Move since close** and the headline stats read biggest gain and drop, because a difference against a stale close is a move, not a mispricing. Only when both sides are shut does it read **Premium vs close**. Rows whose underlying trades around the clock — spot crypto funds, crypto-treasury companies — carry a `24/7` tag, because their move since the close is the underlying repricing and never evidence of a GM premium.
+
 Most of the work is deciding when *not* to print a number. Basis is paused while the U.S. regular session is open. The current session is omitted until it closes. Rows whose token-to-share ratio lands on a split-like factor are dropped, because resolving them needs Ondo's authenticated shares multiplier. Rows whose token quote predates the close are listed but left unpriced, because differencing them would report the underlying's own move as a dislocation. None of those contribute to the headline.
 
 Every reason a row carries no number is a condition in the matrix, so the Withheld view breaks the rows down by reason and links each to the condition that explains it. The monitor is the live instance; the matrix is the explanation.

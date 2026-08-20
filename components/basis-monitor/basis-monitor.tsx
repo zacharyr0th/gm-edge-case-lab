@@ -2,9 +2,11 @@
 
 import { ArrowUpRight, ChevronDown, CircleHelp, Clock3, Search, X } from "lucide-react";
 import Link from "next/link";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { labChecks } from "@/lib/edge-case-lab-data";
 import { type BasisData, type BasisRow } from "@/lib/basis-data";
+import { type GmSessionState, gmSessionAt } from "@/lib/sessions";
+import { SessionClocks } from "@/components/basis-monitor/session-clocks";
 import { AppFooter } from "@/components/ui/app-footer";
 import { AppHeader } from "@/components/ui/app-header";
 import { CompanyLogo } from "@/components/ui/company-logo";
@@ -279,6 +281,42 @@ function ComparisonPanel({ row, onClose }: { row: BasisRow; onClose: () => void 
   );
 }
 
+type Framing = { column: string; median: string; up: string; down: string; blurb: string };
+
+/**
+ * Outside the regular session the token keeps trading while the close stands
+ * still, so the difference is a move, not a mispricing. Only when both sides are
+ * shut does the word "premium" mean anything.
+ */
+function framingFor(session: GmSessionState | null): Framing {
+  if (session === null || session.underlyingLive) {
+    return {
+      column: "Gap vs close",
+      median: "Median gap",
+      up: "Widest premium",
+      down: "Widest discount",
+      blurb: "Public GM token quotes shown with the latest completed U.S. close.",
+    };
+  }
+  if (session.trading) {
+    return {
+      column: "Move since close",
+      median: "Median move",
+      up: "Biggest gain",
+      down: "Biggest drop",
+      blurb:
+        "GM is trading and U.S. equities are shut, so these are moves since the close — not premiums. Rows tagged 24/7 track an underlying that never stopped, so their move is the asset repricing.",
+    };
+  }
+  return {
+    column: "Premium vs close",
+    median: "Median premium",
+    up: "Widest premium",
+    down: "Widest discount",
+    blurb: "Nothing is trading on either side, so the difference is the standing premium or discount.",
+  };
+}
+
 export function BasisMonitor({ data }: { data: BasisData }) {
   // Units that only Ondo's authenticated multiplier can reconcile are dropped
   // outright; everything else stays on the page with its status shown.
@@ -295,6 +333,17 @@ export function BasisMonitor({ data }: { data: BasisData }) {
       .map((status) => ({ status, count: counts.get(status) ?? 0 }))
       .filter((entry) => entry.count > 0);
   }, [data.rows]);
+
+  // One clock drives both the session strip and the wording of the gap column.
+  // It starts null so the server render and the first client render agree.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const timer = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const session = useMemo(() => (now === null ? null : gmSessionAt(now)), [now]);
+  const framing = useMemo(() => framingFor(session), [session]);
 
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState<"all" | "priced" | "withheld">("all");
@@ -360,18 +409,18 @@ export function BasisMonitor({ data }: { data: BasisData }) {
     <div className="flex min-h-dvh flex-col">
       <AppHeader active="basis" />
       <main className="mx-auto w-full max-w-[1384px] flex-1 px-5 py-6 sm:px-6">
+        <SessionClocks now={now} session={session} />
+
         <section
-          className="bg-muted/50 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-4 py-3"
+          className="bg-muted/50 mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border px-4 py-3"
           aria-label="Market status"
         >
           <Clock3 className="text-muted-foreground size-4" />
           <strong className="text-sm">
-            {data.marketOpen ? "U.S. market open" : "Latest completed U.S. close"}
+            {data.marketOpen ? "U.S. market open" : session ? `${session.label} session` : "Latest completed U.S. close"}
           </strong>
           <span className="text-muted-foreground text-xs">
-            {data.marketOpen
-              ? "No row is priced while the regular session is open."
-              : "Public GM token quotes shown with the latest completed U.S. close."}
+            {data.marketOpen ? "No row is priced while the regular session is open." : framing.blurb}
           </span>
           <span className="text-muted-foreground ml-auto text-xs">
             Freshest quote {formatUtc(freshestQuote)}
@@ -381,15 +430,15 @@ export function BasisMonitor({ data }: { data: BasisData }) {
         {stats ? (
           <section className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Summary">
             <Stat label="Priced" value={String(priced.length)} hint={`of ${rows.length} listed`} />
-            <Stat label="Median gap" value={`${stats.median.toFixed(2)}%`} hint="absolute, priced rows only" />
+            <Stat label={framing.median} value={`${stats.median.toFixed(2)}%`} hint="absolute, priced rows only" />
             <Stat
-              label="Widest premium"
+              label={framing.up}
               value={`+${stats.widestPremium.percent.toFixed(1)}%`}
               asset={stats.widestPremium.row}
               onSelect={() => reveal(stats.widestPremium.row.symbol)}
             />
             <Stat
-              label="Widest discount"
+              label={framing.down}
               value={`${stats.widestDiscount.percent.toFixed(1)}%`}
               asset={stats.widestDiscount.row}
               onSelect={() => reveal(stats.widestDiscount.row.symbol)}
@@ -475,7 +524,7 @@ export function BasisMonitor({ data }: { data: BasisData }) {
                     <TableHead className="min-w-[200px]">Asset</TableHead>
                     <TableHead className="min-w-[110px]">Token price</TableHead>
                     <TableHead className="min-w-[110px]">Underlying close</TableHead>
-                    <TableHead className="min-w-[170px]">Gap vs close</TableHead>
+                    <TableHead className="min-w-[170px]">{framing.column}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -509,7 +558,22 @@ export function BasisMonitor({ data }: { data: BasisData }) {
                         <span className="flex items-center gap-2.5">
                           <CompanyLogo ticker={row.ticker} name={row.name} />
                           <span className="min-w-0">
-                            <span className="block font-mono text-[13px] font-semibold">{row.symbol}</span>
+                            <span className="flex items-center gap-1.5">
+                              <span className="font-mono text-[13px] font-semibold">{row.symbol}</span>
+                              {row.continuousUnderlying ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge variant="outline" className="h-4 px-1 text-[9px] font-normal">
+                                      24/7
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-72">
+                                    The underlying trades around the clock, so this move happened while U.S.
+                                    equities were shut. It is the asset repricing, not a GM premium.
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : null}
+                            </span>
                             <span className="text-muted-foreground block truncate text-[11px]">{row.name}</span>
                             {laggingQuote(row) ? (
                               <span className="text-muted-foreground block font-mono text-[10px]">
