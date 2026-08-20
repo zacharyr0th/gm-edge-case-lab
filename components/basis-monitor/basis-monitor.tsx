@@ -3,6 +3,7 @@
 import { ArrowUpRight, ChevronDown, CircleHelp, Clock3, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
+import { labChecks } from "@/lib/edge-case-lab-data";
 import { type BasisData, type BasisRow } from "@/lib/basis-data";
 import { AppFooter } from "@/components/ui/app-footer";
 import { AppHeader } from "@/components/ui/app-header";
@@ -54,6 +55,23 @@ const withheldReason: Record<Withheld, string> = {
     "Token and share units differ by a factor that only Ondo's authenticated shares multiplier can resolve.",
   "no-data": "No completed underlying close was available for this ticker.",
 };
+
+/**
+ * Every reason a row is withheld is a condition the lab documents. The monitor
+ * is the live instance; the lab is the explanation. Link them.
+ */
+const withheldConditionId: Record<Withheld, string | null> = {
+  "market-open": "weekend-offhours",
+  "pre-close": "display-vs-executable",
+  "multiplier-required": "dividend-multiplier",
+  "no-data": null,
+};
+
+function conditionFor(status: Withheld): { id: string; title: string } | null {
+  const id = withheldConditionId[status];
+  const match = id === null ? undefined : labChecks.find((check) => check.id === id);
+  return match ? { id: match.id, title: match.title } : null;
+}
 
 function dislocationOf(row: BasisRow) {
   // A premium is only meaningful when both legs describe the same moment and
@@ -223,6 +241,17 @@ function ComparisonPanel({ row, onClose }: { row: BasisRow; onClose: () => void 
             <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
               {withheldReason[row.basisStatus as Withheld]}
             </p>
+            {(() => {
+              const condition = conditionFor(row.basisStatus as Withheld);
+              return condition ? (
+                <Link
+                  href={`/#${condition.id}`}
+                  className="text-muted-foreground hover:text-foreground mt-2 inline-flex items-center gap-1 text-[11px] underline underline-offset-2"
+                >
+                  {condition.title} <ArrowUpRight className="size-3" />
+                </Link>
+              ) : null;
+            })()}
           </>
         )}
       </CardContent>
@@ -255,6 +284,17 @@ export function BasisMonitor({ data }: { data: BasisData }) {
   // outright; everything else stays on the page with its status shown.
   const rows = useMemo(() => data.rows.filter((row) => !row.multiplierRequired), [data.rows]);
   const priced = useMemo(() => rows.filter((row) => row.basisStatus === "comparable"), [rows]);
+
+  const withheldBreakdown = useMemo(() => {
+    const counts = new Map<Withheld, number>();
+    for (const row of data.rows) {
+      if (row.basisStatus === "comparable") continue;
+      counts.set(row.basisStatus, (counts.get(row.basisStatus) ?? 0) + 1);
+    }
+    return (Object.keys(withheldLabel) as Withheld[])
+      .map((status) => ({ status, count: counts.get(status) ?? 0 }))
+      .filter((entry) => entry.count > 0);
+  }, [data.rows]);
 
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState<"all" | "priced" | "withheld">("all");
@@ -384,11 +424,46 @@ export function BasisMonitor({ data }: { data: BasisData }) {
               </ToggleGroup>
             </div>
 
+            {scope === "withheld" && withheldBreakdown.length > 0 ? (
+              <div className="mt-3 rounded-lg border p-3">
+                <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
+                  Why these rows carry no number
+                </p>
+                <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                  {withheldBreakdown.map(({ status, count }) => {
+                    const condition = conditionFor(status);
+                    return (
+                      <li key={status} className="flex items-baseline gap-2 text-xs">
+                        <strong className="text-foreground tabular-nums">{count}</strong>
+                        <span className="text-muted-foreground">{withheldLabel[status]}</span>
+                        {condition ? (
+                          <Link
+                            href={`/#${condition.id}`}
+                            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 underline underline-offset-2"
+                          >
+                            {condition.title} <ArrowUpRight className="size-3" />
+                          </Link>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="text-muted-foreground mt-2.5 text-[11px] leading-relaxed">
+                  Multiplier-required rows are dropped from the table entirely, because resolving them needs Ondo&rsquo;s
+                  authenticated shares multiplier. Each count above is a condition from the lab, happening right now.
+                </p>
+              </div>
+            ) : null}
+
             <p className="text-muted-foreground mt-3 text-xs" role="status">
               {capped.length === visibleRows.length
                 ? `${visibleRows.length} shown`
                 : `${capped.length} of ${visibleRows.length} shown`}{" "}
-              · {priced.length} directly comparable · {rows.length - priced.length} listed without a basis ·
+              · {priced.length} directly comparable · {rows.length - priced.length} listed without a basis
+              {data.rows.length > rows.length
+                ? ` · ${data.rows.length - rows.length} dropped pending the shares multiplier`
+                : ""}{" "}
+              ·
               CoinGecko {data.coingeckoOk ? "available" : "unavailable"} · Yahoo Finance{" "}
               {data.yahooOk ? "available" : "unavailable"}
             </p>
