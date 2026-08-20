@@ -15,6 +15,7 @@ import {
   labChecks,
   documentedCodesOutsideTheEnum,
   labEndpointDirectory,
+  labPerpsDirectory,
   labStreamDirectory,
   ohlcIntervals,
   ohlcPairsPerErrorMessage,
@@ -55,6 +56,18 @@ const [proto, errorDoc, cachingDoc] = await Promise.all(
   ),
 );
 
+/** Ondo Exchange ships these two documents and no prose pages, so they are the only source for the Perps conditions. */
+const [perpsRest, perpsWs]: Json[] = await Promise.all(
+  [contractSource.perpsRest, contractSource.perpsWs].map((url) =>
+    fetch(url).then((r) => {
+      if (!r.ok) throw new Error(`${url} returned ${r.status}`);
+      return r.json();
+    }),
+  ),
+);
+const perpsSchemas: Json = perpsRest.components?.schemas ?? {};
+const wsChannels: string[] = perpsWs.components?.schemas?.WebSocketRequest?.properties?.channel?.enum ?? [];
+
 function deref(node: Json | undefined, depth = 0): Json {
   if (!node || depth > 8) return node ?? {};
   if (node.$ref) return deref(schemas[String(node.$ref).split("/").pop()!], depth + 1);
@@ -94,9 +107,18 @@ for (const entry of labEndpointDirectory) {
 for (const condition of labChecks) {
   for (const endpoint of condition.endpoints) {
     if (endpoint.method === "RPC") {
-      if (!proto.includes(endpoint.path.split("/").pop()!)) {
-        check(`${condition.id} → ${endpoint.path}`, false, "not in the published .proto");
+      const channel = endpoint.path.startsWith("WS ") ? endpoint.path.slice(3) : null;
+      const known = channel
+        ? wsChannels.includes(channel)
+        : proto.includes(endpoint.path.split("/").pop()!);
+      if (!known) {
+        check(`${condition.id} → ${endpoint.path}`, false, channel ? "not a published WS channel" : "not in the published .proto");
       }
+      continue;
+    }
+    if (labPerpsDirectory.some((entry) => entry.path.endsWith(` ${endpoint.path}`))) {
+      const present = Boolean(perpsRest.paths?.[endpoint.path]?.[endpoint.method.toLowerCase()]);
+      if (!present) check(`${condition.id} → ${endpoint.method} ${endpoint.path}`, false, "not in the perps REST spec");
       continue;
     }
     const present = Boolean(spec.paths?.[endpoint.path]?.[endpoint.method.toLowerCase()]);
@@ -108,6 +130,14 @@ console.log("\nStreaming RPCs referenced by the matrix");
 for (const entry of labStreamDirectory) {
   const rpc = entry.path.replace("RPC BackendService/", "");
   check(entry.path, new RegExp(`rpc\\s+${rpc}\\b`).test(proto), "not declared in the published .proto");
+}
+
+console.log("\nPerps routes referenced by the matrix");
+for (const entry of labPerpsDirectory) {
+  const [method, path] = entry.path.split(" ");
+  const known =
+    method === "WS" ? wsChannels.includes(path) : Boolean(perpsRest.paths?.[path]?.[method.toLowerCase()]);
+  check(entry.path, known, "not in the published perps specs");
 }
 
 const directoryChecks = checksRun;
@@ -278,6 +308,81 @@ check(
   "the filters are now constrained — drop this from the note",
 );
 
+console.log("\nPerps claims (checked against rest-spec.json and ws-spec.json)");
+const dms: Json = perpsWs.paths?.["/ws/cancelAllOrdersAfterPerps"]?.post ?? {};
+check(
+  "dead-man-switch: timeout_seconds is documented as required",
+  /timeout_seconds/.test(String(dms.description ?? "")),
+  "the switch no longer documents timeout_seconds",
+);
+check(
+  "dead-man-switch: the subscribe example still omits it",
+  !JSON.stringify(dms.requestBody?.content?.["application/json"]?.example ?? {}).includes("timeout_seconds"),
+  "the example now includes timeout_seconds — drop this from the condition and the note",
+);
+
+const batchRes = properties(perpsSchemas.BatchAddOrderRes);
+const cancelRes = properties(perpsSchemas.BatchCancelResult);
+check(
+  "batch-partial-failure: the batch response splits added from failed",
+  "addedOrders" in batchRes && "failedOrders" in batchRes,
+  "the batch response shape changed",
+);
+check(
+  "batch-partial-failure: the cancel response splits successful from failed",
+  "successfulCancels" in cancelRes && "failedCancels" in cancelRes,
+  "the batch-cancel response shape changed",
+);
+
+const orderStatuses: string[] = perpsSchemas.ApiOrder?.properties?.status?.enum ?? [];
+check(
+  `order-status-open: the status enum has no partial state (${orderStatuses.join(", ")})`,
+  orderStatuses.includes("open") && !orderStatuses.some((value) => /partial/i.test(value)),
+  "a partial-fill status was added, so the condition no longer holds",
+);
+check(
+  "order-status-open: filledSize is where a partial fill actually shows",
+  "filledSize" in (perpsSchemas.ApiOrder?.properties ?? {}),
+);
+
+check(
+  "untyped-increments: AddOrderReq requires only side and market",
+  [...(perpsSchemas.AddOrderReq?.required ?? [])].sort().join(",") === "market,side",
+  `required=[${(perpsSchemas.AddOrderReq?.required ?? []).join(", ")}]`,
+);
+const tradingPairs: Json =
+  perpsSchemas.MarketsResult?.properties?.perps?.properties?.tradingPairs ?? {};
+check(
+  "untyped-increments: tradingPairs is still an array of bare objects",
+  tradingPairs.type === "array" && !("properties" in (tradingPairs.items ?? {})) && !("$ref" in (tradingPairs.items ?? {})),
+  "tradingPairs is typed now — drop this from the condition and the note",
+);
+
+const wsDescription = String(perpsWs.info?.description ?? "");
+check(
+  "ws-idle-close: the 180-second idle close is still documented",
+  /idle for 180 seconds/.test(wsDescription),
+  "the idle timeout changed",
+);
+check(
+  "ws-idle-close: ping/pong and the 25 rps limit are still documented",
+  /"op": "ping"/.test(wsDescription) && /25 requests\/second/.test(wsDescription),
+  "the heartbeat or rate-limit contract changed",
+);
+
+const perpsErrorCodes: string[] = perpsSchemas.ApiErrorCode?.enum ?? [];
+check(
+  `batch-partial-failure: ApiErrorCode carries ${perpsErrorCodes.length} codes and order_already_filled is not one of them`,
+  perpsErrorCodes.includes("order_already_fully_filled") && !perpsErrorCodes.includes("order_already_filled"),
+  "order_already_filled was added to the enum",
+);
+check(
+  "perps: the envelope spells it error_code while the per-item errors spell it errorCode",
+  "error_code" in properties(perpsSchemas.GenericResponse) &&
+    "errorCode" in properties(perpsSchemas.ErroredAddOrderReq),
+  "the two spellings were reconciled — drop this from the note",
+);
+
 console.log("\nStreaming claims (checked against the published .proto)");
 check(
   "stream-timestamps: stream timestamps are uint64 nanoseconds",
@@ -383,6 +488,8 @@ const record = {
     { label: "Streaming .proto", url: contractSource.proto },
     { label: "Error Codes", url: contractSource.errorCodes },
     { label: "Endpoint Caching", url: contractSource.caching },
+    { label: "Perps REST", url: contractSource.perpsRest },
+    { label: "Perps WebSocket", url: contractSource.perpsWs },
   ],
   directoryChecks,
   claimChecks: checksRun - directoryChecks,

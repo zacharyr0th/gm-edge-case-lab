@@ -382,6 +382,63 @@ export const ohlcValidPairs = [
   "1day/all",
 ];
 
+const deadManSwitchSubscribe = {
+  op: "subscribe",
+  channel: "cancelAllOrdersAfterPerps",
+};
+
+const batchOrderResponse = {
+  success: true,
+  result: {
+    addedOrders: [
+      { orderId: "70a37d8f972f2494837f9dba8364cbb4", market: "AAPL-USD.P", side: "buy", price: "232.00", size: "10.00", status: "open" },
+      { orderId: "8b41c5e0a1d34f2b9c7e6a5d4f3b2a19", market: "AAPL-USD.P", side: "buy", price: "231.50", size: "10.00", status: "open" },
+    ],
+    failedOrders: [
+      { order: { market: "AAPL-USD.P", side: "buy", price: "231.00", size: "10.00" }, error: "insufficient margin", errorCode: "insufficient_margin" },
+      { order: { market: "AAPL-USD.P", side: "buy", price: "230.50", size: "10.00" }, error: "insufficient margin", errorCode: "insufficient_margin" },
+    ],
+  },
+};
+
+const batchCancelResponse = {
+  success: true,
+  result: {
+    successfulCancels: [{ orderId: "70a37d8f972f2494837f9dba8364cbb4", status: "canceled" }],
+    failedCancels: [
+      { orderId: "8b41c5e0a1d34f2b9c7e6a5d4f3b2a19", error: "order_already_fully_filled", errorCode: "order_already_fully_filled" },
+    ],
+  },
+};
+
+const partiallyFilledOrder = {
+  orderId: "70a37d8f972f2494837f9dba8364cbb4",
+  market: "AAPL-USD.P",
+  side: "buy",
+  type: "limit",
+  price: "232.00",
+  size: "20.300",
+  filledSize: "5.403",
+  filledCost: "1253.50",
+  status: "open",
+  timeInForce: "GTC",
+};
+
+const marketsConfig = {
+  perps: {
+    tradingPairs: [{ market: "AAPL-USD.P", baseIncrement: "0.01", quoteIncrement: "0.01", minBaseSize: "0.01", maxLeverage: 20 }],
+  },
+};
+
+const wsConnectionRules = {
+  url: "wss://api.ondoperps.xyz/ws",
+  idleTimeoutSeconds: 180,
+  heartbeat: { send: { op: "ping" }, expect: { type: "pong" } },
+  maxMessageBytes: 32768,
+  rateLimit: { perSecond: 25, burst: 50 },
+  privateChannelsRequire: { op: "login" },
+};
+
 export const knownReasonCodes = [
   "MARKET_CLOSED",
   "MARKET_PAUSED",
@@ -905,6 +962,159 @@ export const labChecks: LabCheck[] = [
     userCopy: "Connect your Solana wallet to continue.",
   },
   {
+    id: "dead-man-switch",
+    category: "Perps",
+    title: "The dead man's switch example omits the field that arms it",
+    scenario:
+      "cancelAllOrdersAfterPerps cancels every resting order if the client stops checking in. Its description says timeout_seconds is required. The example subscribe message in the same document does not include it, and the update payload is typed as a bare object, so nothing confirms the switch is armed.",
+    endpoints: [{ method: "RPC", path: "WS cancelAllOrdersAfterPerps" }],
+    doc: { label: "Ondo Perps WebSocket API", url: "https://docs.ondo.finance/api-reference/ws-spec.json" },
+    fixtures: [
+      { label: "The spec's own subscribe example — no timeout_seconds", body: deadManSwitchSubscribe },
+      { label: "Transport rules the switch depends on", body: wsConnectionRules },
+    ],
+    naiveAssumption: "Copy the example from the docs and the switch is armed.",
+    naive: () => {
+      const sent = deadManSwitchSubscribe as Record<string, unknown>;
+      return "timeout_seconds" in sent
+        ? "Switch armed"
+        : `Sent ${JSON.stringify(sent)} — the documented example. timeout_seconds is described as required and is absent here, and the update payload is an untyped object, so nothing tells the client whether the switch took. An unarmed switch leaves every resting order working after the process dies.`;
+    },
+    verdict: "wrong",
+    correct: [
+      "Send timeout_seconds explicitly and treat the subscription as unarmed until an update confirms it.",
+      "Renew well inside the timeout; the same socket that carries the renewal is the one that dies in the failure you are protecting against.",
+      "Decide deliberately what an unarmed switch means for you — orders surviving a crash is a position, not an outage.",
+    ],
+    impact: {
+      wallet: "A crashed client leaves leveraged orders resting with nobody watching.",
+      exchange: "Market-making quotes stay live through a deploy that took the quoter down.",
+      fintech: "Automated strategies keep working orders after the strategy process is gone.",
+    },
+    userCopy: "Auto-cancel is active. Orders cancel if we lose connection for more than 60 seconds.",
+  },
+  {
+    id: "batch-partial-failure",
+    category: "Perps",
+    title: "Batch orders return 200 with the failures inside the body",
+    scenario:
+      "POST and DELETE on /v1/perps/orders/batch both answer 200 with success: true, then split the outcome into addedOrders/failedOrders and successfulCancels/failedCancels. The HTTP status describes the request, not the orders.",
+    endpoints: [
+      { method: "POST", path: "/v1/perps/orders/batch" },
+      { method: "GET", path: "/v1/markets" },
+    ],
+    doc: { label: "Ondo Perps REST API", url: "https://docs.ondo.finance/api-reference/rest-spec.json" },
+    fixtures: [
+      { label: "POST /v1/perps/orders/batch → 200, two of four rejected", body: batchOrderResponse },
+      { label: "DELETE /v1/perps/orders/batch → 200, one cancel failed", body: batchCancelResponse },
+    ],
+    naiveAssumption: "res.ok and success: true mean every order in the batch went through.",
+    naive: () => {
+      const { addedOrders, failedOrders } = batchOrderResponse.result;
+      const submitted = addedOrders.length + failedOrders.length;
+      const cancelFailed = batchCancelResponse.result.failedCancels.length;
+      return `success: true → “${submitted} orders placed.” ${failedOrders.length} were rejected for ${failedOrders[0].errorCode}, so the book carries ${addedOrders.length}/${submitted} of the intended size. The cancel path is worse: ${cancelFailed} cancel failed, so the client believes it is flat while a filled order stands.`;
+    },
+    verdict: "wrong",
+    correct: [
+      "Reconcile every batch against its response arrays; the status code cannot tell you what happened to order three.",
+      "Treat a failed cancel as an open position until positions confirm otherwise, not as a retryable error.",
+      "errorCode is documented as empty when the failure is not semantic, so branch on the array, not on truthiness.",
+    ],
+    impact: {
+      wallet: "The ladder the user placed is half the size they asked for.",
+      exchange: "Quote refreshes silently thin out until inventory is lopsided.",
+      fintech: "A flatten-everything routine reports success while leverage stays on.",
+    },
+    userCopy: "2 of 4 orders were placed. The rest need more margin.",
+  },
+  {
+    id: "order-status-open",
+    category: "Perps",
+    title: "“open” covers partially filled, and the status enum cannot say so",
+    scenario:
+      "ApiOrder.status is one of open, fullyfilled, canceled, pending, untriggered. There is no partial state. A half-filled order stays open, and only filledSize records that anything traded.",
+    endpoints: [{ method: "POST", path: "/v1/perps/orders" }],
+    doc: { label: "Ondo Perps REST API", url: "https://docs.ondo.finance/api-reference/rest-spec.json" },
+    fixtures: [{ label: "GET order → 200, status open, a quarter filled", body: partiallyFilledOrder }],
+    naiveAssumption: "status open means nothing has traded, so cancelling costs nothing.",
+    naive: () => {
+      const order = partiallyFilledOrder;
+      const remaining = (Number(order.size) - Number(order.filledSize)).toFixed(3);
+      return `status: "${order.status}" → cancelled as untouched. ${order.filledSize} of ${order.size} had already traded, so the cancel only removes the ${remaining} remainder and leaves a ${order.filledSize} position the client never recorded opening.`;
+    },
+    verdict: "wrong",
+    correct: [
+      "Read filledSize on every order, including ones you are about to cancel; status is not a fill indicator.",
+      "Reconcile against positions after cancelling, because the cancel only removes the remainder.",
+      "Note the spelling: the status is fullyfilled while the error code is order_already_fully_filled.",
+    ],
+    impact: {
+      wallet: "Users hold a position they believe they cancelled.",
+      exchange: "Inventory drifts from the model on every partial fill.",
+      fintech: "Risk reports understate exposure by the filled remainder.",
+    },
+    userCopy: "Cancelled. 5.403 of 20.30 had already filled and is now an open position.",
+  },
+  {
+    id: "untyped-increments",
+    category: "Perps",
+    title: "Orders must align to increments the spec never types",
+    scenario:
+      "AddOrderReq requires price aligned with quoteIncrement and size aligned with baseIncrement, both “from /v1/markets”. MarketsResult types tradingPairs as an array of bare objects, so those values exist only in an example. AddOrderReq itself only requires side and market.",
+    endpoints: [
+      { method: "GET", path: "/v1/markets" },
+      { method: "POST", path: "/v1/perps/orders" },
+    ],
+    doc: { label: "Ondo Perps REST API", url: "https://docs.ondo.finance/api-reference/rest-spec.json" },
+    fixtures: [{ label: "The increments, which live only in the example", body: marketsConfig }],
+    naiveAssumption: "The generated client types everything I need to build a valid order.",
+    naive: () => {
+      const pair = marketsConfig.perps.tradingPairs[0];
+      return `Order priced at 232.005 on ${pair.market} → rejected. quoteIncrement is ${pair.quoteIncrement}, but tradingPairs is typed as a bare object, so codegen produces unknown and the increment never reaches the rounding code. The request also validates with only side and market set, which is not an order.`;
+    },
+    verdict: "wrong",
+    correct: [
+      "Hand-model the market config; the generated type for tradingPairs carries none of the fields you must read.",
+      "Round to quoteIncrement and baseIncrement before sending, and re-read on reconnect — increments are per-market.",
+      "Do not trust AddOrderReq.required: it lists side and market, while a limit order needs price and size and a market buy may use quoteSize instead.",
+    ],
+    impact: {
+      wallet: "Every order from a price slider is rejected until rounding is added by hand.",
+      exchange: "Onboarding a new market fails on the first order rather than at config time.",
+      fintech: "Order sizing derived from notional lands off-increment and bounces.",
+    },
+    userCopy: "Price must be in increments of $0.01.",
+  },
+  {
+    id: "ws-idle-close",
+    category: "Perps",
+    title: "A quiet market and a dead socket look identical",
+    scenario:
+      "The socket closes after 180 seconds idle. The client must send {op: ping} and expect {type: pong}; private channels need a login message before subscribing. Nothing about a silent connection distinguishes a calm market from a closed one.",
+    endpoints: [{ method: "RPC", path: "WS ordersPerps" }],
+    doc: { label: "Ondo Perps WebSocket API", url: "https://docs.ondo.finance/api-reference/ws-spec.json" },
+    fixtures: [{ label: "Connection rules, from the spec description", body: wsConnectionRules }],
+    naiveAssumption: "Subscribe once and the socket stays up as long as the process does.",
+    naive: () => {
+      const rules = wsConnectionRules;
+      return `Subscribed to ordersPerps, then waited. No ${JSON.stringify(rules.heartbeat.send)} sent, so the server closed the socket at ${rules.idleTimeoutSeconds}s of quiet. Fill notifications stop arriving; no error is raised, and the client cannot tell this from a market with no activity.`;
+    },
+    verdict: "degraded",
+    correct: [
+      "Ping on a timer well inside 180s and treat a missing pong as a dead connection, not a quiet one.",
+      "Send login before subscribing to any private channel, and re-login on every reconnect before resubscribing.",
+      "Respect the documented ceilings: 25 requests per second with a burst of 50, and 32 KB per message.",
+      "Reconcile orders and positions over REST after any reconnect — the socket does not replay what you missed.",
+    ],
+    impact: {
+      wallet: "Fill notifications stop and the app shows stale orders indefinitely.",
+      exchange: "The order feed dies during exactly the quiet period before a move.",
+      fintech: "Position state freezes while the strategy keeps trading against it.",
+    },
+    userCopy: "Reconnecting to live updates…",
+  },
+  {
     id: "stream-timestamps",
     category: "Streaming",
     title: "Three timestamp units in one API",
@@ -1055,6 +1265,16 @@ export const labStreamDirectory: { path: string; note: string }[] = [
   { path: "RPC BackendService/StreamSoftQuoteDepth", note: "Synthetic ladder; bids redeem, asks mint" },
 ];
 
+/** Ondo Exchange (Perps). A separate product, a separate spec pair, and no prose docs at all. */
+export const labPerpsDirectory: { path: string; note: string }[] = [
+  { path: "GET /v1/markets", note: "Increments, min size, leverage — untyped in the schema" },
+  { path: "POST /v1/perps/orders", note: "Single order; only side and market are required" },
+  { path: "POST /v1/perps/orders/batch", note: "200 with addedOrders and failedOrders" },
+  { path: "GET /v1/perps/positions", note: "Open positions and margin" },
+  { path: "WS cancelAllOrdersAfterPerps", note: "Dead man's switch; timeout_seconds required" },
+  { path: "WS ordersPerps", note: "Private channel; login first, ping inside 180s" },
+];
+
 /**
  * The published contract these conditions were read from.
  * `bun run verify:contract` re-checks every structural claim the lab makes
@@ -1065,6 +1285,8 @@ export const contractSource = {
   proto: "https://docs.ondo.finance/api-reference/protobuf-schema.md",
   errorCodes: "https://docs.ondo.finance/api-reference/error-codes.md",
   caching: "https://docs.ondo.finance/api-reference/endpoint-caching.md",
+  perpsRest: "https://docs.ondo.finance/api-reference/rest-spec.json",
+  perpsWs: "https://docs.ondo.finance/api-reference/ws-spec.json",
   title: "GM Backend API",
   version: "1.0.0",
   verifiedAt: "2026-08-19",

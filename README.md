@@ -1,6 +1,6 @@
 # GM Edge-Case Lab
 
-A one-page compatibility suite for [Ondo Stocks (Global Markets)](https://docs.ondo.finance/) API integrations, served at `/`. It replays 20 documented production states — schema evolution, market and session state, corporate actions, limits, quotes, chain infrastructure, and the gRPC streams — against a happy-path integration, executes the failure in your browser, and shows what to ship instead.
+A one-page compatibility suite for [Ondo Stocks (Global Markets)](https://docs.ondo.finance/) API integrations, served at `/`. It replays 25 documented production states — schema evolution, market and session state, corporate actions, limits, quotes, chain infrastructure, the gRPC streams, and Ondo Perps — against a happy-path integration, executes the failure in your browser, and shows what to ship instead.
 
 Each state includes the wrong assumption, the actual runtime result, the correct handling, impact by integrator type (wallet, exchange, fintech app), suggested user-facing copy, the endpoints involved, and the contract-faithful fixture payload.
 
@@ -9,6 +9,10 @@ Filter by area, and link straight to a single condition — every row has a stab
 ## Streaming
 
 The OpenAPI document describes 20 REST endpoints. It does not mention the streaming surface at all: four gRPC RPCs at `grpc.gm.ondo.finance:443`, published separately as a `.proto`. Four conditions cover it, because it is where the unit and lifecycle assumptions break — timestamps are nanoseconds there and milliseconds over REST, OHLC candles are revised in place until `is_closed`, the stream never backfills after a reconnect, and depth `bids` are the redeem side with marginal per-level prices.
+
+## Perps
+
+Ondo Exchange is a separate product with its own published pair of specs — `rest-spec.json` (74 paths) and `ws-spec.json` (21 channels) — served from the same docs site with no prose pages describing either. Five conditions cover it, weighted toward the places where a mistake costs money rather than pixels: a dead man's switch whose own subscribe example omits the field that arms it, batch order and cancel endpoints that answer `200` with the failures inside the body, an order status enum with no partial-fill state, order increments the schema never types, and a socket that closes after 180 seconds of quiet.
 
 ## Weekend Basis Monitor
 
@@ -32,7 +36,7 @@ Every condition asserts something structural about the published API — that `u
 bun run verify:contract
 ```
 
-It fetches the live OpenAPI document, the published `.proto`, the Error Codes page, and the Endpoint Caching page, re-checks each claim, reports which documented endpoints the matrix does not yet cover, and exits non-zero on drift. CI runs it on every push and weekly.
+It fetches all six published sources — the GM OpenAPI document, the streaming `.proto`, the Error Codes and Endpoint Caching pages, and the Perps REST and WebSocket specs — re-checks each claim, reports which documented endpoints the matrix does not yet cover, and exits non-zero on drift. CI runs it on every push and weekly.
 
 The usual stack for this — `oasdiff` for breaking-change detection, Spectral for linting, Schemathesis for property tests — reads one OpenAPI document and compares shapes. That misses this API in two ways. It cannot see the streaming surface or the error catalogue, because neither is in the OpenAPI document. And it cannot catch semantic drift under an unchanged shape: a `number` that changes units, an enum that is a subset of the real one. Those are the claims here.
 
@@ -40,7 +44,7 @@ One group of checks is different in kind: it pins places where Ondo's published 
 
 Each run records its result to `lib/contract-verification.json`, and the page renders that record — claim count, sources, pass or fail, run date — so a visitor sees the run rather than a claim that the checks exist.
 
-Last verified on August 20, 2026: all 46 claims held across the four sources, and the basket-token rollout that conditions 01 and 02 describe has since shipped — `underlyingMarket` and `constituentTokens` are both required in the current contract.
+Last verified on August 20, 2026: all 58 claims held across the six sources, and the basket-token rollout that conditions 01 and 02 describe has since shipped — `underlyingMarket` and `constituentTokens` are both required in the current contract.
 
 ## Run
 
@@ -55,7 +59,7 @@ Open http://127.0.0.1:3452 for the lab, or http://127.0.0.1:3452/basis for the m
 
 | Path | What it is |
 | --- | --- |
-| `/` | The edge-case matrix. Twenty production states, each with the wrong assumption, the runtime result, the correct handling, impact by integrator type, and suggested user-facing copy. |
+| `/` | The edge-case matrix. Twenty-five production states, each with the wrong assumption, the runtime result, the correct handling, impact by integrator type, and suggested user-facing copy. |
 | `/basis` | The off-hours basis monitor. Live GM token quotes against each underlying's latest completed U.S. close. |
 | `/lab` | Redirect to `/`, kept so older links still resolve. |
 

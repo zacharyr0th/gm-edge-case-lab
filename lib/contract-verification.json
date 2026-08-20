@@ -1,5 +1,5 @@
 {
-  "verifiedAt": "2026-08-20T04:19:34.651Z",
+  "verifiedAt": "2026-08-20T04:33:43.278Z",
   "ok": true,
   "specVersion": "1.0.0",
   "sources": [
@@ -18,10 +18,18 @@
     {
       "label": "Endpoint Caching",
       "url": "https://docs.ondo.finance/api-reference/endpoint-caching.md"
+    },
+    {
+      "label": "Perps REST",
+      "url": "https://docs.ondo.finance/api-reference/rest-spec.json"
+    },
+    {
+      "label": "Perps WebSocket",
+      "url": "https://docs.ondo.finance/api-reference/ws-spec.json"
     }
   ],
-  "directoryChecks": 16,
-  "claimChecks": 46,
+  "directoryChecks": 22,
+  "claimChecks": 58,
   "uncoveredEndpoints": [
     "/v1/assets/all/prices/latest",
     "/v1/assets/all/prices/latest/enhanced",

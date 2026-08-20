@@ -22,6 +22,7 @@ import {
   integrationModes,
   labChecks,
   labEndpointDirectory,
+  labPerpsDirectory,
   labStreamDirectory,
   runNaive,
   verification,
@@ -274,7 +275,7 @@ export function EdgeCaseLab() {
           <div className="min-w-0">
             <strong className="block text-sm">Production matrix sign-off</strong>
             <span className="text-muted-foreground text-xs">
-              {labChecks.length} public-docs-derived launch conditions for Ondo Stocks partner products.
+              {labChecks.length} public-docs-derived launch conditions across Ondo Stocks and Ondo Perps.
             </span>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -332,6 +333,7 @@ export function EdgeCaseLab() {
               <span><strong className="text-foreground">{labChecks.length}</strong> production states</span>
               <span><strong className="text-foreground">{labEndpointDirectory.length}</strong> API endpoints</span>
               <span><strong className="text-foreground">{labStreamDirectory.length}</strong> stream RPCs</span>
+              <span><strong className="text-foreground">{labPerpsDirectory.length}</strong> perps routes</span>
               <span><strong className="text-foreground">3</strong> chains</span>
               <span>
                 <strong className="text-foreground">{counts.crashes}</strong> crash ·{" "}
@@ -518,11 +520,12 @@ export function EdgeCaseLab() {
 
         <Collapsible className="mt-6 rounded-lg border">
           <CollapsibleTrigger className="text-muted-foreground flex w-full items-center gap-2 px-4 py-3 text-xs [&[data-state=open]>svg:last-child]:rotate-180">
-            {labEndpointDirectory.length + labStreamDirectory.length} endpoints and RPCs in the contract surface
+            {labEndpointDirectory.length + labStreamDirectory.length + labPerpsDirectory.length} endpoints, RPCs, and
+            channels in the contract surface
             <ChevronDown className="ml-auto size-4 transition-transform" />
           </CollapsibleTrigger>
           <CollapsibleContent className="grid gap-2 px-4 pb-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[...labEndpointDirectory, ...labStreamDirectory].map((endpoint) => (
+            {[...labEndpointDirectory, ...labStreamDirectory, ...labPerpsDirectory].map((endpoint) => (
               <div key={endpoint.path} className="rounded-md border p-2.5">
                 <code className="font-mono text-[10px] break-words">{endpoint.path}</code>
                 <p className="text-muted-foreground mt-1 text-[11px]">{endpoint.note}</p>
@@ -537,8 +540,9 @@ export function EdgeCaseLab() {
             <ChevronDown className="ml-auto size-4 transition-transform" />
           </CollapsibleTrigger>
           <CollapsibleContent className="text-muted-foreground px-4 pb-4 text-xs leading-relaxed">
-            Fixtures mirror Ondo&rsquo;s published OpenAPI contract, the streaming <code className="font-mono">.proto</code>,
-            the Error Codes page, and announced changes. Values are illustrative;
+            Fixtures mirror Ondo&rsquo;s published documents: the GM OpenAPI contract, the streaming{" "}
+            <code className="font-mono">.proto</code>, the Error Codes and caching pages, and the Ondo Perps REST and
+            WebSocket specifications. Values are illustrative;
             the live API requires an <code className="font-mono">x-api-key</code>. Independent prototype by Zachary
             Roth, not affiliated with Ondo Finance.
           </CollapsibleContent>
