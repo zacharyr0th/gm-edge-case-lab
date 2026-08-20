@@ -237,7 +237,7 @@ export function EdgeCaseLab() {
           </p>
         </details>
       </main>
-      <AppFooter />
+      <AppFooter page="lab" />
     </div>
   );
 }

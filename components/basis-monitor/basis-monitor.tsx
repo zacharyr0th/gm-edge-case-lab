@@ -219,7 +219,7 @@ export function BasisMonitor({ data }: { data: BasisData }) {
           </p>
         </details>
       </main>
-      <AppFooter />
+      <AppFooter page="basis" />
     </div>
   );
 }

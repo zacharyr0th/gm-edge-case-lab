@@ -59,7 +59,7 @@
 }
 
 .table {
-  overflow: hidden;
+  overflow-x: auto;
   border-radius: 0 0 10px 10px;
 }
 
@@ -389,4 +389,14 @@
 .notComparable::before {
   background: none;
   border: 1px solid currentColor;
+}
+
+
+@media (max-width: 700px) {
+  /* Keep every column reachable rather than clipping the close and the
+     timestamp that justify each row's status. */
+  .row {
+    width: max-content;
+    min-width: 100%;
+  }
 }
