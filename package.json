@@ -12,7 +12,8 @@
     "dev": "next dev --turbopack --port 3452",
     "build": "next build",
     "start": "next start --port 3452",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:contract": "bun run scripts/verify-contract.ts"
   },
   "dependencies": {
     "@radix-ui/react-collapsible": "^1.1.20",

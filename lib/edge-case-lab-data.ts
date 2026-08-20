@@ -224,7 +224,7 @@ const futureReasonLimits = {
   },
 };
 
-const knownReasonCodes = [
+export const knownReasonCodes = [
   "MARKET_CLOSED",
   "MARKET_PAUSED",
   "ASSET_PAUSED",
@@ -254,10 +254,11 @@ export const labChecks: LabCheck[] = [
     id: "null-underlying",
     category: "Schema evolution",
     title: "underlyingMarket is null for basket tokens",
-    scenario: "Announced change: basket tokens return underlyingMarket: null, with the basket in constituentTokens.",
+    scenario:
+      "Shipped: the published contract now marks underlyingMarket required and nullable. Basket tokens return null there, with the basket in constituentTokens.",
     endpoints: [{ method: "GET", path: "/v1/assets/{symbol}/market" }],
     doc: { label: "Upcoming API changes", url: "https://docs.ondo.finance/api-reference/upcoming-changes" },
-    fixtures: [{ label: "GET /v1/assets/EXMPLon/market → 200 (announced shape, illustrative values)", body: compositeMarket }],
+    fixtures: [{ label: "GET /v1/assets/EXMPLon/market → 200 (contract shape, illustrative values)", body: compositeMarket }],
     naiveAssumption: "Every token has one underlying stock, so underlyingMarket.ticker is always safe.",
     naive: () => {
       const parsed = compositeMarket as unknown as { underlyingMarket: { ticker: string; name: string } };
@@ -266,7 +267,7 @@ export const labChecks: LabCheck[] = [
     verdict: "crashes",
     correct: [
       "Treat underlyingMarket as nullable; render constituentTokens as a basket.",
-      "Ship before the first basket token launches — the rollout note says null appears only then.",
+      "The contract already allows null, so a basket token can appear without further notice.",
     ],
     impact: {
       wallet: "Token detail screen white-screens on launch day.",
@@ -279,10 +280,11 @@ export const labChecks: LabCheck[] = [
     id: "strict-parser",
     category: "Schema evolution",
     title: "Strict parsers reject the new constituentTokens field",
-    scenario: "The rollout first adds constituentTokens: [] to every market response. Ondo: parsers must not reject it.",
+    scenario:
+      "constituentTokens is now required on every market response, including single-stock tokens, where it is empty. A closed parser rejects it today.",
     endpoints: [{ method: "GET", path: "/v1/assets/{symbol}/market" }],
     doc: { label: "Upcoming API changes", url: "https://docs.ondo.finance/api-reference/upcoming-changes" },
-    fixtures: [{ label: "GET /v1/assets/AAPLon/market → 200 (after additive rollout)", body: singleStockMarket }],
+    fixtures: [{ label: "GET /v1/assets/AAPLon/market → 200 (current contract shape)", body: singleStockMarket }],
     naiveAssumption: "The schema is closed — reject any field we didn't model.",
     naive: () => {
       const allowed = new Set(["primaryMarket", "underlyingMarket", "timestamp"]);
@@ -299,7 +301,7 @@ export const labChecks: LabCheck[] = [
       "That one change turns every future additive rollout into a non-event.",
     ],
     impact: {
-      wallet: "Every market call fails on Ondo's rollout day — with no deploy on your side.",
+      wallet: "Every market call fails the day the field lands — with no deploy on your side.",
       exchange: "Market-data ingestion halts across all listings at once.",
       fintech: "The nightly sync marks every Ondo asset invalid.",
     },
@@ -606,3 +608,15 @@ export const labEndpointDirectory: { path: string; note: string }[] = [
   { path: "POST /v1/attestations/soft", note: "Executable quote preview" },
   { path: "POST /v1/attestations", note: "Signed mint/redeem authorization" },
 ];
+
+/**
+ * The published contract these conditions were read from.
+ * `bun run verify:contract` re-checks every structural claim the lab makes
+ * against the live spec and fails when one drifts.
+ */
+export const contractSource = {
+  spec: "https://docs.ondo.finance/openapi.json",
+  title: "GM Backend API",
+  version: "1.0.0",
+  verifiedAt: "2026-08-19",
+} as const;

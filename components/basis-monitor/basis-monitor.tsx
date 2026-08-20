@@ -16,6 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
+const DEFAULT_ROW_CAP = 60;
+
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const utcTime = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
@@ -201,6 +203,7 @@ export function BasisMonitor({ data }: { data: BasisData }) {
 
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState<"all" | "priced" | "withheld">("all");
+  const [showAll, setShowAll] = useState(false);
   const deferredQuery = useDeferredValue(query);
 
   const visibleRows = useMemo(() => {
@@ -212,6 +215,13 @@ export function BasisMonitor({ data }: { data: BasisData }) {
       return row.symbol.toLowerCase().includes(needle) || row.name.toLowerCase().includes(needle);
     });
   }, [rows, scope, deferredQuery]);
+
+  // Rows are already ordered by how far the token sits from its close, so the
+  // head of the list is the whole point. Rendering all of them by default costs
+  // one third-party logo request per row and buries the signal; the rest stay a
+  // click or a search away.
+  const capped = showAll ? visibleRows : visibleRows.slice(0, DEFAULT_ROW_CAP);
+  const hiddenCount = visibleRows.length - capped.length;
 
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(priced[0]?.symbol ?? null);
   const selected = rows.find((row) => row.symbol === selectedSymbol) ?? null;
@@ -303,7 +313,10 @@ export function BasisMonitor({ data }: { data: BasisData }) {
             </div>
 
             <p className="text-muted-foreground mt-3 text-xs" role="status">
-              {visibleRows.length} shown · {priced.length} directly comparable ·{" "}
+              {capped.length === visibleRows.length
+                ? `${visibleRows.length} shown`
+                : `${capped.length} of ${visibleRows.length} shown`}{" "}
+              · {priced.length} directly comparable ·{" "}
               {rows.length - priced.length} listed without a basis · CoinGecko{" "}
               {data.coingeckoOk ? "available" : "unavailable"} · Yahoo Finance{" "}
               {data.yahooOk ? "available" : "unavailable"}
@@ -320,7 +333,7 @@ export function BasisMonitor({ data }: { data: BasisData }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {visibleRows.length === 0 ? (
+                    {capped.length === 0 ? (
                       <TableRow className="hover:bg-transparent">
                         <TableCell colSpan={4} className="text-muted-foreground py-10 text-center text-xs">
                           {!data.coingeckoOk
@@ -331,7 +344,7 @@ export function BasisMonitor({ data }: { data: BasisData }) {
                         </TableCell>
                       </TableRow>
                     ) : null}
-                    {visibleRows.map((row) => (
+                    {capped.map((row) => (
                       <TableRow
                         key={row.symbol}
                         tabIndex={0}
@@ -380,6 +393,13 @@ export function BasisMonitor({ data }: { data: BasisData }) {
                     ))}
                   </TableBody>
               </Table>
+              {hiddenCount > 0 ? (
+                <div className="flex items-center justify-center border-t p-3">
+                  <Button variant="outline" size="sm" onClick={() => setShowAll(true)}>
+                    Show {hiddenCount} more
+                  </Button>
+                </div>
+              ) : null}
             </div>
           </div>
 
