@@ -6,7 +6,7 @@ Each state includes the wrong assumption, the actual runtime result, the correct
 
 ## Weekend Basis Monitor
 
-`/basis` charts the live premium or discount of every GM token vs its underlying's last U.S. close. Assets are discovered from CoinGecko's "Ondo Tokenized Assets" category; closes come from Yahoo Finance. Gaps beyond ±500 bps are flagged as likely splits or stale prints, and token prints older than the underlying's close are flagged "pre-close print" — both are excluded from the headline number.
+`/basis` charts the live premium or discount of GM tokens vs each underlying's latest completed U.S. close. Assets are discovered from CoinGecko's "Ondo Tokenized Assets" category; closes come from Yahoo Finance. Basis is paused while the U.S. regular session is open, and the current session is omitted until it closes. Rows whose token-to-share ratio lands on a split-like factor are dropped, because resolving them needs Ondo's authenticated shares multiplier. Rows whose token quote predates the completed close are listed but left unpriced, because differencing them would report the underlying's own move as a dislocation. Neither group contributes to the headline count.
 
 ## Why
 

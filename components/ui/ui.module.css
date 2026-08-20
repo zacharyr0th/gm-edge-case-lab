@@ -1,0 +1,209 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.headerInner {
+  display: grid;
+  grid-template-columns: minmax(230px, 1fr) auto minmax(230px, 1fr);
+  align-items: center;
+  width: min(1384px, calc(100% - 48px));
+  min-height: 70px;
+  margin: 0 auto;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 12px;
+  color: var(--foreground);
+  text-decoration: none;
+}
+
+.brandMark {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+
+.brand strong,
+.brand em {
+  display: block;
+}
+
+.brand strong {
+  font-size: 14px;
+  font-weight: 620;
+  letter-spacing: -.01em;
+}
+
+.brand em {
+  margin-top: 2px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--muted);
+}
+
+.navLink,
+.navActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 6px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 540;
+  text-decoration: none;
+}
+
+.navLink:hover {
+  color: var(--foreground);
+}
+
+.navActive {
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
+}
+
+.iconButton,
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.iconButton {
+  justify-self: end;
+  width: 36px;
+  height: 36px;
+}
+
+.button {
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 13px;
+  font-size: 13px;
+  font-weight: 570;
+}
+
+.iconButton:hover,
+.button:hover {
+  background: var(--muted);
+}
+
+.iconButton:focus-visible,
+.button:focus-visible,
+.nav a:focus-visible,
+.brand:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--foreground);
+  font-size: 11px;
+  font-weight: 570;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .headerInner {
+    grid-template-columns: 1fr auto;
+    width: min(100% - 28px, 1384px);
+    min-height: 62px;
+  }
+
+  .brand em,
+  .brandMark {
+    display: none;
+  }
+
+  .nav {
+    position: fixed;
+    right: 14px;
+    bottom: 14px;
+    left: 14px;
+    z-index: 50;
+    justify-content: center;
+    background: var(--background);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 14%);
+  }
+
+  .navLink,
+  .navActive {
+    justify-content: center;
+    width: 50%;
+  }
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  align-items: baseline;
+  justify-content: space-between;
+  width: min(100% - 40px, 1384px);
+  margin: 28px auto 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.footer a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.footer a:hover {
+  color: var(--foreground);
+}
+
+@media (max-width: 700px) {
+  .footer {
+    width: min(100% - 28px, 1384px);
+    /* Clear the fixed bottom nav. */
+    margin-bottom: 92px;
+  }
+}

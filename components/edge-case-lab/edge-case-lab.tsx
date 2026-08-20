@@ -5,15 +5,18 @@ import {
   Braces,
   Building2,
   ChevronDown,
+  ClipboardCheck,
   CircleAlert,
   CircleX,
-  FlaskConical,
   RotateCcw,
   Smartphone,
   TriangleAlert,
   Wallet,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AppFooter } from "@/components/ui/app-footer";
+import { AppHeader } from "@/components/ui/app-header";
+import { Button } from "@/components/ui/button";
 import {
   integrationModes,
   labChecks,
@@ -25,10 +28,10 @@ import {
 } from "@/lib/edge-case-lab-data";
 import styles from "./edge-case-lab.module.css";
 
-const verdictMeta: Record<LabVerdict, { label: string; icon: typeof CircleX; className: string }> = {
-  crashes: { label: "Crashes", icon: CircleX, className: styles.verdictCrashes },
-  wrong: { label: "Silently wrong", icon: TriangleAlert, className: styles.verdictWrong },
-  degraded: { label: "Degraded", icon: CircleAlert, className: styles.verdictDegraded },
+const verdictMeta: Record<LabVerdict, { label: string; icon: typeof CircleX }> = {
+  crashes: { label: "Crashes", icon: CircleX },
+  wrong: { label: "Silently wrong", icon: TriangleAlert },
+  degraded: { label: "Degraded", icon: CircleAlert },
 };
 
 const modeIcons: Record<IntegrationMode, typeof Wallet> = {
@@ -50,125 +53,73 @@ export function EdgeCaseLab() {
   const [results, setResults] = useState<LabRun[] | null>(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setResults(labChecks.map((check) => runNaive(check)));
-    }, 350);
+    const timer = window.setTimeout(() => setResults(labChecks.map((check) => runNaive(check))), 350);
     return () => window.clearTimeout(timer);
   }, [runId]);
+
+  const crashCount = labChecks.filter((check) => check.verdict === "crashes").length;
+  const wrongCount = labChecks.filter((check) => check.verdict === "wrong").length;
+  const degradedCount = labChecks.filter((check) => check.verdict === "degraded").length;
 
   function replay() {
     setResults(null);
     setRunId((value) => value + 1);
   }
-  const crashCount = labChecks.filter((check) => check.verdict === "crashes").length;
-  const wrongCount = labChecks.filter((check) => check.verdict === "wrong").length;
-  const degradedCount = labChecks.filter((check) => check.verdict === "degraded").length;
 
   return (
     <div className={styles.shell}>
-      <header className={styles.topbar}>
-        <div className={styles.brand}>
-          <FlaskConical size={20} strokeWidth={1.7} />
-          <div>
-            <strong>GM Edge-Case Lab</strong>
-            <span>Unofficial · built on Ondo&rsquo;s published API contract</span>
-          </div>
-        </div>
-        <nav className={styles.topNav}>
-          <a className={styles.navLink} href="/basis">Weekend basis</a>
-          <a className={styles.specLink} href="https://docs.ondo.finance/openapi.json" target="_blank" rel="noreferrer">
-            openapi.json <ArrowUpRight size={14} />
-          </a>
-        </nav>
-      </header>
-
+      <AppHeader active="lab" />
       <main className={styles.main}>
-        <section className={styles.hero}>
-          <div>
-            <span className={styles.eyebrow}>Integration compatibility matrix</span>
-            <h1>Will your Ondo Stocks integration survive production?</h1>
-            <p>
-              {labChecks.length}{" "}real-world moments that break a typical integration — weekends, dividends, halts,
-              schema changes. Open a row to watch one break and see the fix.
-            </p>
+        <section className={styles.statusBar} aria-label="Lab summary">
+          <ClipboardCheck size={17} />
+          <div className={styles.statusCopy}>
+            <strong>Production matrix sign-off</strong>
+            <span>Twelve public-docs-derived launch conditions for Ondo Stocks partner products.</span>
           </div>
-          <div className={styles.heroPanel}>
-            <div className={styles.heroStats}>
-              <div><strong>{labChecks.length}</strong><span>production states</span></div>
-              <div><strong>{labEndpointDirectory.length}</strong><span>API endpoints</span></div>
-              <div><strong>3</strong><span>chains</span></div>
-            </div>
-            <button type="button" className={styles.replayButton} onClick={replay}>
-              <RotateCcw size={15} /> Replay the run
-            </button>
+          <div className={styles.headingActions}>
+            <a href="https://docs.ondo.finance/openapi.json" target="_blank" rel="noreferrer">
+              OpenAPI <ArrowUpRight size={14} />
+            </a>
+            <Button type="button" onClick={replay}><RotateCcw size={14} /> Replay</Button>
           </div>
         </section>
 
-        <section className={styles.explainer}>
-          <div className={styles.explainerWhat}>
-            <span>What is this?</span>
-            <p>
-              Imagine a wallet adds Ondo&rsquo;s tokenized stocks. A developer wires up the API, tests on a Tuesday
-              afternoon with the market open, everything works, it ships. That app is now wrong in twelve specific
-              ways — and nobody knows yet, because each one only shows up later.
-            </p>
-            <p>
-              Saturday arrives and it says &ldquo;market closed&rdquo; while Ondo is still quoting. Apple pays a
-              dividend and every balance it displays goes stale. An announced schema change lands and the token screen
-              crashes. Each row below is one of those moments: the exact API response, the buggy result — run live in
-              your browser — and the fix.
-            </p>
-          </div>
-          <div className={styles.explainerLegend}>
-            <span>How to read the verdicts</span>
-            <div>
-              <span className={`${styles.verdictChip} ${styles.verdictCrashes}`}><CircleX size={13} strokeWidth={2.2} /> Crashes</span>
-              <p>The integration throws — users see a broken screen.</p>
+        <section className={styles.contentGrid}>
+          <div className={styles.tableSection}>
+            <div className={styles.statsLine}>
+              <span><strong>{labChecks.length}</strong> production states</span>
+              <span><strong>{labEndpointDirectory.length}</strong> API endpoints</span>
+              <span><strong>3</strong> chains</span>
+              <span><strong>{crashCount}</strong> crash · <strong>{wrongCount}</strong> wrong · <strong>{degradedCount}</strong> degrade</span>
             </div>
-            <div>
-              <span className={`${styles.verdictChip} ${styles.verdictWrong}`}><TriangleAlert size={13} strokeWidth={2.2} /> Silently wrong</span>
-              <p>It renders fine but tells users something false.</p>
-            </div>
-            <div>
-              <span className={`${styles.verdictChip} ${styles.verdictDegraded}`}><CircleAlert size={13} strokeWidth={2.2} /> Degraded</span>
-              <p>It survives but handles the failure badly.</p>
-            </div>
-            <p className={styles.explainerHint}>&ldquo;Audit as&rdquo; switches whose consequences each row shows.</p>
-          </div>
-        </section>
 
-        <section className={styles.controls}>
-          <div className={styles.modePicker} role="group" aria-label="Integration type">
-            <span>Audit as</span>
-            {integrationModes.map((item) => {
-              const Icon = modeIcons[item.id];
-              return (
-                <button
-                  type="button"
-                  key={item.id}
-                  className={mode === item.id ? styles.modeActive : ""}
-                  aria-pressed={mode === item.id}
-                  onClick={() => setMode(item.id)}
-                >
-                  <Icon size={16} strokeWidth={1.8} /> {item.label}
-                </button>
-              );
-            })}
-          </div>
-          <p className={styles.summaryLine}>
-            A typical integration gets <strong>all {labChecks.length}</strong> wrong:{" "}
-            <em className={styles.summaryCrash}>{crashCount} crash</em>,{" "}
-            <em className={styles.summaryWrong}>{wrongCount} render wrong</em>,{" "}
-            <em className={styles.summaryDegraded}>{degradedCount} degrade</em>.
-          </p>
-        </section>
+            <section className={styles.controls}>
+              <div className={styles.modePicker} role="group" aria-label="Integration type">
+                <span>Audit as</span>
+                {integrationModes.map((item) => {
+                  const Icon = modeIcons[item.id];
+                  return (
+                    <button
+                      type="button"
+                      key={item.id}
+                      className={mode === item.id ? styles.modeActive : ""}
+                      aria-pressed={mode === item.id}
+                      onClick={() => setMode(item.id)}
+                    >
+                      <Icon size={15} /> {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p>Open a row to inspect the failure and fix.</p>
+            </section>
 
-        <div className={styles.matrix} key={runId}>
+            <div className={styles.matrix} key={runId}>
           <div className={styles.matrixHead}>
             <span>#</span>
             <span>Production state</span>
             <span>Verdict</span>
-            <span className={styles.matrixHeadFix}>Fix</span>
+            <span>Fix</span>
             <span />
           </div>
           {labChecks.map((check, index) => {
@@ -177,7 +128,7 @@ export function EdgeCaseLab() {
             const VerdictIcon = verdict.icon;
             const open = openId === check.id;
             return (
-              <div key={check.id} className={styles.matrixItem} style={{ "--i": index } as React.CSSProperties}>
+              <div key={check.id} className={styles.matrixItem}>
                 <button
                   type="button"
                   className={`${styles.matrixRow} ${open ? styles.matrixRowOpen : ""}`}
@@ -189,9 +140,7 @@ export function EdgeCaseLab() {
                     <strong>{check.title}</strong>
                     <em>{check.category}</em>
                   </span>
-                  <span className={`${styles.verdictChip} ${verdict.className}`}>
-                    <VerdictIcon size={13} strokeWidth={2.2} /> {verdict.label}
-                  </span>
+                  <span className={styles.verdictChip}><VerdictIcon size={13} /> {verdict.label}</span>
                   <span className={styles.mFix}>{check.correct[0]}</span>
                   <ChevronDown size={16} className={styles.mChev} />
                 </button>
@@ -201,48 +150,32 @@ export function EdgeCaseLab() {
                     <div className={styles.checkBody}>
                       <div className={styles.checkMainCol}>
                         <p className={styles.detailScenario}>{check.scenario}</p>
-                        <div className={styles.naiveBlock}>
+                        <section className={styles.naiveBlock}>
                           <span>The happy path assumes</span>
                           <p>{check.naiveAssumption}</p>
-                          <div className={`${styles.naiveOutput} ${result?.threw ? styles.naiveThrew : ""}`}>
-                            <span>
-                              {result ? (result.threw ? "Thrown in your browser just now" : "What actually renders") : "Running the happy-path parser…"}
-                            </span>
+                          <div className={styles.naiveOutput}>
+                            <span>{result ? (result.threw ? "Thrown in your browser" : "What renders") : "Running…"}</span>
                             <code>{result ? result.output : "…"}</code>
                           </div>
-                        </div>
-                        <div className={styles.correctBlock}>
+                        </section>
+                        <section className={styles.correctBlock}>
                           <span>Ship instead</span>
-                          <ul>
-                            {check.correct.map((point) => (
-                              <li key={point}>{point}</li>
-                            ))}
-                          </ul>
-                        </div>
+                          <ul>{check.correct.map((point) => <li key={point}>{point}</li>)}</ul>
+                        </section>
                       </div>
 
                       <aside className={styles.checkAside}>
-                        <div>
-                          <span>{impactLabel[mode]}</span>
-                          <p>{check.impact[mode]}</p>
-                        </div>
-                        <div className={styles.userCopy}>
-                          <span>Say to users</span>
-                          <p>&ldquo;{check.userCopy}&rdquo;</p>
-                        </div>
+                        <div><span>{impactLabel[mode]}</span><p>{check.impact[mode]}</p></div>
+                        <div><span>Say to users</span><p>&ldquo;{check.userCopy}&rdquo;</p></div>
                         <div className={styles.endpointPills}>
                           <span>Endpoints</span>
-                          {check.endpoints.map((endpoint) => (
-                            <code key={endpoint.path}>{endpoint.method} {endpoint.path}</code>
-                          ))}
-                          <a href={check.doc.url} target="_blank" rel="noreferrer">
-                            {check.doc.label} <ArrowUpRight size={13} />
-                          </a>
+                          {check.endpoints.map((endpoint) => <code key={endpoint.path}>{endpoint.method} {endpoint.path}</code>)}
+                          <a href={check.doc.url} target="_blank" rel="noreferrer">{check.doc.label} <ArrowUpRight size={13} /></a>
                         </div>
                       </aside>
                     </div>
                     <details className={styles.fixtureDetails}>
-                      <summary><Braces size={14} /> The API responses used ({check.fixtures.length})</summary>
+                      <summary><Braces size={14} /> API responses ({check.fixtures.length})</summary>
                       {check.fixtures.map((fixture) => (
                         <div key={fixture.label} className={styles.fixture}>
                           <span>{fixture.label}</span>
@@ -255,50 +188,56 @@ export function EdgeCaseLab() {
               </div>
             );
           })}
-        </div>
+            </div>
+          </div>
 
-        <section className={styles.endpointDirectory}>
-          <div className={styles.directoryHeading}>
-            <span>Contract surface</span>
-            <h2>The states above compose from {labEndpointDirectory.length} endpoints</h2>
-            <p>
-              &ldquo;Can this user trade right now&rdquo; is a composition: market state, asset events, sessions,
-              limits, and quotes.
-            </p>
-          </div>
-          <div className={styles.directoryGrid}>
-            {labEndpointDirectory.map((endpoint) => (
-              <div key={endpoint.path}>
-                <code>{endpoint.path}</code>
-                <p>{endpoint.note}</p>
+          <aside className={styles.purposePanel} aria-labelledby="purpose-title">
+            <div className={styles.purposeIntro}>
+              <span>What this is</span>
+              <h2 id="purpose-title">A production-readiness tool, not an endpoint demo.</h2>
+              <p>
+                The matrix models conditions an integration should explicitly handle, based on Ondo&rsquo;s public API,
+                product documentation, and chain-specific execution behavior.
+              </p>
+              <p>
+                It checks whether the product stays safe when markets close, assets are restricted, token economics
+                change, quotes diverge, limits are reached, schemas evolve, or simulation produces a false warning.
+              </p>
+            </div>
+            <div className={styles.purposeOutcomes}>
+              <span>Use the matrix to create</span>
+              <div className={styles.outcomeGrid}>
+                <div><strong>01</strong><p>Partner acceptance criteria</p></div>
+                <div><strong>02</strong><p>Repeatable test fixtures</p></div>
+                <div><strong>03</strong><p>Launch gates and sign-off</p></div>
+                <div><strong>04</strong><p>Post-launch monitoring</p></div>
               </div>
-            ))}
-          </div>
+            </div>
+            <div className={styles.coverageLine}>
+              <span>Coverage</span>
+              <p>Schema evolution · Market and asset states · Corporate actions · Quote semantics · Risk limits · Unknown enums · Chain-specific UX</p>
+            </div>
+          </aside>
         </section>
 
-        <footer className={styles.methodology}>
-          <div>
-            <span>Methodology</span>
-            <p>
-              Fixtures mirror Ondo&rsquo;s published OpenAPI spec (GM Backend API v1.0.0, August 2026) and its
-              announced changes; values are illustrative, and the live API requires an <code>x-api-key</code>, so the
-              lab runs on labeled demo fixtures one adapter away from live endpoints. Independent prototype by Zachary
-              Roth — not affiliated with or endorsed by Ondo Finance.
-            </p>
+        <details className={styles.directory}>
+          <summary>{labEndpointDirectory.length} endpoints in the contract surface <ChevronDown size={15} /></summary>
+          <div className={styles.directoryGrid}>
+            {labEndpointDirectory.map((endpoint) => (
+              <div key={endpoint.path}><code>{endpoint.path}</code><p>{endpoint.note}</p></div>
+            ))}
           </div>
-          <div className={styles.methodologyLinks}>
-            <a href="https://docs.ondo.finance/api-reference/upcoming-changes" target="_blank" rel="noreferrer">
-              Upcoming API changes <ArrowUpRight size={13} />
-            </a>
-            <a href="https://docs.ondo.finance/llms.txt" target="_blank" rel="noreferrer">
-              Documentation index <ArrowUpRight size={13} />
-            </a>
-            <a href="https://github.com/ondoprotocol/gm-solana-simulator" target="_blank" rel="noreferrer">
-              gm-solana-simulator <ArrowUpRight size={13} />
-            </a>
-          </div>
-        </footer>
+        </details>
+
+        <details className={styles.methodology}>
+          <summary>Methodology and sources <ChevronDown size={15} /></summary>
+          <p>
+            Fixtures mirror Ondo&rsquo;s published OpenAPI contract and announced changes. Values are illustrative; the live
+            API requires an <code>x-api-key</code>. Independent prototype by Zachary Roth, not affiliated with Ondo Finance.
+          </p>
+        </details>
       </main>
+      <AppFooter />
     </div>
   );
 }
