@@ -367,7 +367,7 @@ export function BasisMonitor({ data }: { data: BasisData }) {
   const capped = showAll ? visibleRows : visibleRows.slice(0, DEFAULT_ROW_CAP);
   const hiddenCount = visibleRows.length - capped.length;
 
-  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(priced[0]?.symbol ?? null);
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(rows[0]?.symbol ?? null);
   const selected = rows.find((row) => row.symbol === selectedSymbol) ?? null;
 
   const stats = useMemo(() => {

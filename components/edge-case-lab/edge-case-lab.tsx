@@ -3,7 +3,6 @@
 import {
   ArrowUpRight,
   Braces,
-  Building2,
   Check,
   ChevronDown,
   CircleAlert,
@@ -11,10 +10,7 @@ import {
   ShieldCheck,
   Copy,
   Link2,
-  RotateCcw,
-  Smartphone,
   TriangleAlert,
-  Wallet,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -36,11 +32,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const FIXTURES_URL = "https://basis-integration.vercel.app/fixtures.json";
+const FEATURED_CHECK_IDS = [
+  "null-underlying",
+  "session-mismatch",
+  "display-vs-executable",
+  "dead-man-switch",
+  "stream-timestamps",
+];
 
 /** Written as lines so the braces and backticks survive being pasted out of the page. */
 const testHarness = [
@@ -83,12 +85,6 @@ const verdictMeta: Record<
   },
 };
 
-const modeIcons: Record<IntegrationMode, typeof Wallet> = {
-  wallet: Wallet,
-  exchange: Building2,
-  fintech: Smartphone,
-};
-
 const impactLabel: Record<IntegrationMode, string> = {
   wallet: "Wallet impact",
   exchange: "Exchange impact",
@@ -117,7 +113,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
   );
 }
 
-function CheckDetail({ check, result, mode }: { check: LabCheck; result: LabRun | undefined; mode: IntegrationMode }) {
+function CheckDetail({ check, result }: { check: LabCheck; result: LabRun | undefined }) {
   const fixtureJson = useMemo(
     () =>
       JSON.stringify(
@@ -162,8 +158,15 @@ function CheckDetail({ check, result, mode }: { check: LabCheck; result: LabRun 
 
         <aside className="space-y-4 text-[12px]">
           <div>
-            <p className="text-muted-foreground text-[10px] tracking-wide uppercase">{impactLabel[mode]}</p>
-            <p className="mt-1 leading-relaxed">{check.impact[mode]}</p>
+            <p className="text-muted-foreground text-[10px] tracking-wide uppercase">Integration impact</p>
+            <div className="mt-1.5 space-y-2.5">
+              {integrationModes.map((item) => (
+                <div key={item.id}>
+                  <p className="font-medium">{impactLabel[item.id]}</p>
+                  <p className="text-muted-foreground mt-0.5 leading-relaxed">{check.impact[item.id]}</p>
+                </div>
+              ))}
+            </div>
           </div>
           <Separator />
           <div>
@@ -222,16 +225,15 @@ function CheckDetail({ check, result, mode }: { check: LabCheck; result: LabRun 
 }
 
 export function EdgeCaseLab() {
-  const [mode, setMode] = useState<IntegrationMode>("wallet");
-  const [runId, setRunId] = useState(0);
-  const [openId, setOpenId] = useState<string | null>(labChecks[0]?.id ?? null);
+  const [showAll, setShowAll] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
   const [category, setCategory] = useState<string>("all");
   const [results, setResults] = useState<LabRun[] | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setResults(labChecks.map((check) => runNaive(check))), 350);
     return () => window.clearTimeout(timer);
-  }, [runId]);
+  }, []);
 
   // A shared link should land on the condition it names, whether it arrives as
   // a cold load or as a hash change on a page that is already open.
@@ -240,6 +242,7 @@ export function EdgeCaseLab() {
       const hash = window.location.hash.replace("#", "");
       if (!hash || !labChecks.some((check) => check.id === hash)) return;
       setOpenId(hash);
+      setShowAll(true);
       setCategory("all");
       window.requestAnimationFrame(() =>
         document.getElementById(hash)?.scrollIntoView({ block: "center" }),
@@ -255,8 +258,13 @@ export function EdgeCaseLab() {
     [],
   );
   const shown = useMemo(
-    () => labChecks.filter((check) => category === "all" || check.category === category),
-    [category],
+    () =>
+      showAll
+        ? labChecks.filter((check) => category === "all" || check.category === category)
+        : FEATURED_CHECK_IDS.map((id) => labChecks.find((check) => check.id === id)).filter(
+            (check): check is LabCheck => Boolean(check),
+          ),
+    [category, showAll],
   );
 
   const counts = useMemo(
@@ -286,127 +294,56 @@ export function EdgeCaseLab() {
       <main className="mx-auto w-full max-w-[1384px] flex-1 px-5 py-6 sm:px-6">
         <section className="rounded-lg border px-5 py-5" aria-labelledby="lab-intro">
           <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
-            <div className="min-w-0 max-w-2xl space-y-2.5">
+            <div className="min-w-0 max-w-2xl space-y-2">
               <h2 id="lab-intro" className="text-lg leading-snug font-semibold tracking-tight">
-                What breaks when you build on Ondo
+                Five ways Ondo integrations fail
               </h2>
               <p className="text-muted-foreground text-[13px] leading-relaxed">
-                No single endpoint answers &ldquo;can this user trade this asset right now.&rdquo; The answer is
-                spread across market status, per-asset events, session rules, trading limits, and quote
-                availability. The streaming and Perps APIs are not in the OpenAPI document at all.
-              </p>
-              <p className="text-muted-foreground text-[13px] leading-relaxed">
-                Every row below is a condition taken from Ondo&rsquo;s own documents. Open one and it runs the
-                naive version in your browser, shows what that does, and shows what to ship instead.
+                The happy path misses null data, session rules, executable pricing, safety controls, and mixed
+                timestamp units. These five examples show the failure and the handling to ship instead.
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <a
-                href="https://docs.ondo.finance/openapi.json"
-                target="_blank"
-                rel="noreferrer"
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs underline underline-offset-2"
-              >
-                OpenAPI <ArrowUpRight className="size-3.5" />
-              </a>
-              <Button variant="outline" size="sm" onClick={() => { setResults(null); setRunId((v) => v + 1); }}>
-                <RotateCcw /> Replay
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowAll((value) => !value);
+                setCategory("all");
+              }}
+            >
+              {showAll ? "Show five highlights" : `Browse all ${labChecks.length} conditions`}
+            </Button>
           </div>
-        </section>
-
-        <section
-          className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border px-4 py-2.5 text-xs"
-          aria-label="Contract verification"
-        >
-          <ShieldCheck className={verification.ok ? "text-premium size-4" : "text-destructive size-4"} />
-          <span>
-            <strong className="text-foreground">{verification.claimChecks}</strong> claims re-checked against{" "}
-            <strong className="text-foreground">{verification.sources.length}</strong> live Ondo sources —{" "}
-            {verification.ok ? "all holding" : `${verification.failures.length} drifted`}
-          </span>
-          <span className="text-muted-foreground hidden sm:inline">
-            {verificationSources}
-          </span>
-          <span className="text-muted-foreground ml-auto flex items-center gap-3">
-            <span>{verifiedOn}</span>
-            <a
-              href="https://github.com/zacharyr0th/ondo-integration-lab/actions/workflows/verify-contract.yml"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-foreground inline-flex items-center gap-1 underline underline-offset-2"
-            >
-              CI <ArrowUpRight className="size-3.5" />
-            </a>
-            <a
-              href="https://github.com/zacharyr0th/ondo-integration-lab/blob/main/scripts/verify-contract.ts"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-foreground inline-flex items-center gap-1 underline underline-offset-2"
-            >
-              Source <ArrowUpRight className="size-3.5" />
-            </a>
-          </span>
         </section>
 
         <div className="mt-5">
           <div className="min-w-0">
-            <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-              <span><strong className="text-foreground">{labChecks.length}</strong> conditions</span>
-              <span><strong className="text-foreground">{labEndpointDirectory.length}</strong> REST endpoints</span>
-              <span><strong className="text-foreground">{labStreamDirectory.length}</strong> stream RPCs</span>
-              <span><strong className="text-foreground">{labPerpsDirectory.length}</strong> perps routes</span>
-              <span><strong className="text-foreground">3</strong> chains</span>
-              <span>
-                <strong className="text-foreground">{counts.crashes}</strong> crash ·{" "}
-                <strong className="text-foreground">{counts.wrong}</strong> wrong ·{" "}
-                <strong className="text-foreground">{counts.degraded}</strong> degrade
-              </span>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-muted-foreground text-[10px] tracking-wide uppercase">Read as</span>
-                <ToggleGroup
-                  type="single"
-                  value={mode}
-                  onValueChange={(value) => value && setMode(value as IntegrationMode)}
-                  variant="outline"
-                  size="sm"
-                >
-                  {integrationModes.map((item) => {
-                    const Icon = modeIcons[item.id];
-                    return (
-                      <ToggleGroupItem key={item.id} value={item.id}>
-                        <Icon className="size-3.5" /> {item.label}
-                      </ToggleGroupItem>
-                    );
-                  })}
-                </ToggleGroup>
+            {showAll ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-muted-foreground text-xs">
+                  {shown.length} of {labChecks.length} conditions
+                </p>
+                <label className="flex items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">Area</span>
+                  <select
+                    value={category}
+                    onChange={(event) => setCategory(event.target.value)}
+                    className="border-input bg-background h-8 rounded-md border px-2.5 text-xs"
+                  >
+                    <option value="all">All areas</option>
+                    {categories.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
+            ) : (
+              <p className="text-muted-foreground text-xs">Start with the five failures that cut across the stack.</p>
+            )}
 
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-muted-foreground text-[10px] tracking-wide uppercase">Area</span>
-                <ToggleGroup
-                  type="single"
-                  value={category}
-                  onValueChange={(value) => setCategory(value || "all")}
-                  variant="outline"
-                  size="sm"
-                  className="flex-wrap"
-                >
-                  <ToggleGroupItem value="all">All</ToggleGroupItem>
-                  {categories.map((item) => (
-                    <ToggleGroupItem key={item} value={item}>
-                      {item}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
-              </div>
-            </div>
-
-            <div className="mt-4 overflow-hidden rounded-lg border" key={runId}>
+            <div className="mt-3 overflow-hidden rounded-lg border">
               {shown.map((check) => {
                 const index = labChecks.indexOf(check);
                 const result = results?.[index];
@@ -475,7 +412,7 @@ export function EdgeCaseLab() {
                     </div>
                     {open ? (
                       <div id={`${check.id}-detail`}>
-                        <CheckDetail check={check} result={result} mode={mode} />
+                        <CheckDetail check={check} result={result} />
                       </div>
                     ) : null}
                   </div>
@@ -546,14 +483,65 @@ export function EdgeCaseLab() {
 
         <Collapsible className="mt-3 rounded-lg border">
           <CollapsibleTrigger className="text-muted-foreground flex w-full items-center gap-2 px-4 py-3 text-xs [&[data-state=open]>svg:last-child]:rotate-180">
-            Where the fixtures come from
+            Method, coverage, and verification
             <ChevronDown className="ml-auto size-4 transition-transform" />
           </CollapsibleTrigger>
-          <CollapsibleContent className="text-muted-foreground px-4 pb-4 text-xs leading-relaxed">
-            Every fixture is copied from a document Ondo publishes: the GM OpenAPI contract, the streaming{" "}
-            <code className="font-mono">.proto</code>, the Error Codes and caching pages, and the Perps REST and
-            WebSocket specs. The numbers in them are made up, because the live APIs need credentials. Independent
-            prototype by Zachary Roth, not affiliated with Ondo Finance.
+          <CollapsibleContent className="space-y-4 px-4 pb-4 text-xs leading-relaxed">
+            <div
+              className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border px-3 py-2.5"
+              aria-label="Contract verification"
+            >
+              <ShieldCheck className={verification.ok ? "text-premium size-4" : "text-destructive size-4"} />
+              <span>
+                <strong>{verification.claimChecks}</strong> claims checked against{" "}
+                <strong>{verification.sources.length}</strong> live sources —{" "}
+                {verification.ok ? "all holding" : `${verification.failures.length} drifted`}
+              </span>
+              <span className="text-muted-foreground ml-auto">{verifiedOn}</span>
+            </div>
+            <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+              <span><strong className="text-foreground">{labChecks.length}</strong> conditions</span>
+              <span><strong className="text-foreground">{labEndpointDirectory.length}</strong> REST endpoints</span>
+              <span><strong className="text-foreground">{labStreamDirectory.length}</strong> stream RPCs</span>
+              <span><strong className="text-foreground">{labPerpsDirectory.length}</strong> perps routes</span>
+              <span>
+                <strong className="text-foreground">{counts.crashes}</strong> crash ·{" "}
+                <strong className="text-foreground">{counts.wrong}</strong> wrong ·{" "}
+                <strong className="text-foreground">{counts.degraded}</strong> degrade
+              </span>
+            </div>
+            <p className="text-muted-foreground">
+              Every fixture comes from a document Ondo publishes: the GM OpenAPI contract, streaming{" "}
+              <code className="font-mono">.proto</code>, Error Codes, caching guidance, and the Perps REST and
+              WebSocket specs. Values are illustrative because the live APIs require credentials.
+            </p>
+            <p className="text-muted-foreground">{verificationSources}</p>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="https://docs.ondo.finance/openapi.json"
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 underline underline-offset-2"
+              >
+                OpenAPI <ArrowUpRight className="size-3.5" />
+              </a>
+              <a
+                href="https://github.com/zacharyr0th/ondo-integration-lab/actions/workflows/verify-contract.yml"
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 underline underline-offset-2"
+              >
+                Verification CI <ArrowUpRight className="size-3.5" />
+              </a>
+              <a
+                href="https://github.com/zacharyr0th/ondo-integration-lab/blob/main/scripts/verify-contract.ts"
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 underline underline-offset-2"
+              >
+                Verification source <ArrowUpRight className="size-3.5" />
+              </a>
+            </div>
           </CollapsibleContent>
         </Collapsible>
       </main>
