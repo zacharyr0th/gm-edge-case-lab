@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronDown, CircleHelp, Clock3, Search, X } from "lucide-react";
+import { ArrowUpRight, ChevronDown, CircleHelp, Clock3, Search, X } from "lucide-react";
+import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
 import { type BasisData, type BasisRow } from "@/lib/basis-data";
 import { AppFooter } from "@/components/ui/app-footer";
@@ -8,15 +9,18 @@ import { AppHeader } from "@/components/ui/app-header";
 import { CompanyLogo } from "@/components/ui/company-logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_ROW_CAP = 60;
+/** A quote this far behind the freshest one is worth naming on its own row. */
+const STALE_QUOTE_SECONDS = 3600;
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const utcTime = new Intl.DateTimeFormat("en-US", {
@@ -27,19 +31,9 @@ const utcTime = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
   hour12: false,
 });
-const utcDay = new Intl.DateTimeFormat("en-US", {
-  timeZone: "UTC",
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-});
 
 function formatUtc(seconds: number | null): string {
   return seconds === null ? "—" : `${utcTime.format(new Date(seconds * 1000))} UTC`;
-}
-
-function formatDay(seconds: number | null): string | null {
-  return seconds === null ? null : utcDay.format(new Date(seconds * 1000));
 }
 
 type Withheld = Exclude<BasisRow["basisStatus"], "comparable">;
@@ -70,32 +64,11 @@ function dislocationOf(row: BasisRow) {
   return { percent, label: percent >= 0 ? "Premium" : "Discount", premium: percent >= 0 };
 }
 
-function StatusChip({ row }: { row: BasisRow }) {
-  const dislocation = dislocationOf(row);
-  if (dislocation) {
-    return (
-      <Badge
-        variant="outline"
-        className={
-          dislocation.premium
-            ? "border-premium/40 text-premium gap-1 px-1.5 py-0 text-[9px] font-semibold"
-            : "border-discount/40 text-discount gap-1 px-1.5 py-0 text-[9px] font-semibold"
-        }
-      >
-        <span className={`size-1 rounded-full ${dislocation.premium ? "bg-premium" : "bg-discount"}`} />
-        {dislocation.label} {dislocation.percent >= 0 ? "+" : ""}
-        {dislocation.percent.toFixed(1)}%
-      </Badge>
-    );
-  }
-  const status = row.basisStatus as Withheld;
+function WithheldChip({ status }: { status: Withheld }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Badge
-          variant="outline"
-          className="text-muted-foreground gap-1 px-1.5 py-0 text-[9px] font-semibold"
-        >
+        <Badge variant="outline" className="text-muted-foreground gap-1 px-1.5 py-0 text-[10px] font-medium">
           <span className="border-muted-foreground size-1 rounded-full border" />
           {withheldLabel[status]}
         </Badge>
@@ -105,17 +78,73 @@ function StatusChip({ row }: { row: BasisRow }) {
   );
 }
 
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+/**
+ * The gap is the number the page exists to report, so it gets its own column
+ * and a diverging bar. Scale is shared across rows, which makes relative size
+ * readable without reading digits.
+ */
+function GapCell({ row, maxAbs }: { row: BasisRow; maxAbs: number }) {
+  const dislocation = dislocationOf(row);
+  if (!dislocation) return <WithheldChip status={row.basisStatus as Withheld} />;
+  const fraction = maxAbs > 0 ? Math.min(1, Math.abs(dislocation.percent) / maxAbs) : 0;
   return (
-    <Card className="gap-0 rounded-lg py-3 shadow-none">
-      <CardHeader className="px-4 pb-1">
-        <CardTitle className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-          {label}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="px-4">
-        <p className="font-mono text-lg leading-tight font-semibold tabular-nums">{value}</p>
-        {hint ? <p className="text-muted-foreground mt-0.5 text-[10px]">{hint}</p> : null}
+    <span className="flex items-center gap-2.5">
+      <span
+        className={cn(
+          "w-12 shrink-0 text-right font-mono text-[12px] font-semibold tabular-nums",
+          dislocation.premium ? "text-premium" : "text-discount",
+        )}
+      >
+        {dislocation.percent >= 0 ? "+" : ""}
+        {dislocation.percent.toFixed(1)}%
+      </span>
+      <span className="bg-muted relative hidden h-1.5 w-24 shrink-0 rounded-full sm:block" aria-hidden>
+        <span className="bg-border absolute inset-y-0 left-1/2 w-px" />
+        <span
+          className={cn("absolute inset-y-0 rounded-full", dislocation.premium ? "bg-premium" : "bg-discount")}
+          style={
+            dislocation.premium
+              ? { left: "50%", width: `${fraction * 50}%` }
+              : { right: "50%", width: `${fraction * 50}%` }
+          }
+        />
+      </span>
+    </span>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  hint,
+  onSelect,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  onSelect?: () => void;
+}) {
+  const body = (
+    <>
+      <p className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">{label}</p>
+      <p className="mt-1 font-mono text-lg leading-tight font-semibold tabular-nums">{value}</p>
+      {hint ? <p className="text-muted-foreground mt-0.5 text-[10px]">{hint}</p> : null}
+    </>
+  );
+  return (
+    <Card className="gap-0 rounded-lg py-0 shadow-none">
+      <CardContent className="p-0">
+        {onSelect ? (
+          <button
+            type="button"
+            onClick={onSelect}
+            className="hover:bg-muted/50 focus-visible:ring-ring w-full rounded-lg px-4 py-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          >
+            {body}
+          </button>
+        ) : (
+          <div className="px-4 py-3">{body}</div>
+        )}
       </CardContent>
     </Card>
   );
@@ -125,7 +154,7 @@ function ComparisonPanel({ row, onClose }: { row: BasisRow; onClose: () => void 
   const dislocation = dislocationOf(row);
   return (
     <Card className="gap-0 rounded-lg py-0 shadow-none lg:sticky lg:top-24">
-      <CardHeader className="flex flex-row items-start justify-between gap-3 px-5 py-4">
+      <div className="flex flex-row items-start justify-between gap-3 px-5 py-4">
         <div className="flex min-w-0 items-center gap-3">
           <CompanyLogo ticker={row.ticker} name={row.name} className="size-9" />
           <div className="min-w-0">
@@ -136,7 +165,7 @@ function ComparisonPanel({ row, onClose }: { row: BasisRow; onClose: () => void 
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close comparison details">
           <X />
         </Button>
-      </CardHeader>
+      </div>
       <Separator />
       <CardContent className="grid grid-cols-2 gap-4 px-5 py-4">
         <div>
@@ -144,13 +173,14 @@ function ComparisonPanel({ row, onClose }: { row: BasisRow; onClose: () => void 
           <p className="mt-1 font-mono text-base font-semibold tabular-nums">
             {row.tokenPrice === null ? "—" : usd.format(row.tokenPrice)}
           </p>
+          <p className="text-muted-foreground text-[10px]">quote {formatUtc(row.tokenUpdatedAt)}</p>
         </div>
         <div>
           <p className="text-muted-foreground text-[10px] tracking-wide uppercase">Underlying close / share</p>
           <p className="mt-1 font-mono text-base font-semibold tabular-nums">
             {row.underlyingClose === null ? "—" : usd.format(row.underlyingClose)}
           </p>
-          <p className="text-muted-foreground text-[10px]">{formatDay(row.underlyingCloseTime)}</p>
+          <p className="text-muted-foreground text-[10px]">close {formatUtc(row.underlyingCloseTime)}</p>
         </div>
       </CardContent>
       <Separator />
@@ -159,9 +189,10 @@ function ComparisonPanel({ row, onClose }: { row: BasisRow; onClose: () => void 
         {dislocation ? (
           <>
             <p
-              className={`mt-1 font-mono text-2xl font-semibold tabular-nums ${
-                dislocation.premium ? "text-premium" : "text-discount"
-              }`}
+              className={cn(
+                "mt-1 font-mono text-2xl font-semibold tabular-nums",
+                dislocation.premium ? "text-premium" : "text-discount",
+              )}
             >
               {dislocation.label} {dislocation.percent >= 0 ? "+" : ""}
               {dislocation.percent.toFixed(1)}%
@@ -189,7 +220,17 @@ function ComparisonPanel({ row, onClose }: { row: BasisRow; onClose: () => void 
           close for the referenced stock or ETF. The monitor shows the two source values without inventing a
           conversion.
         </p>
-        <p className="text-muted-foreground mt-3 text-[10px]">Token quote {formatUtc(row.tokenUpdatedAt)}</p>
+        <p className="text-muted-foreground mt-3 text-xs leading-relaxed">
+          Both figures are <strong className="text-foreground font-medium">display prices</strong>, not executable
+          quotes. An integration that treats a number on this page as tradable has made the mistake the lab
+          documents.
+        </p>
+        <Link
+          href="/#display-vs-executable"
+          className="text-muted-foreground hover:text-foreground mt-2 inline-flex items-center gap-1 text-[11px] underline underline-offset-2"
+        >
+          Display price is not the executable price <ArrowUpRight className="size-3" />
+        </Link>
       </CardContent>
     </Card>
   );
@@ -227,20 +268,39 @@ export function BasisMonitor({ data }: { data: BasisData }) {
   const selected = rows.find((row) => row.symbol === selectedSymbol) ?? null;
 
   const stats = useMemo(() => {
-    const spreads = priced
-      .map((row) => dislocationOf(row)?.percent)
-      .filter((v): v is number => typeof v === "number");
-    if (spreads.length === 0) return null;
-    const sorted = [...spreads].sort((a, b) => a - b);
-    const absSorted = spreads.map(Math.abs).sort((a, b) => a - b);
-    const median = absSorted[Math.floor(absSorted.length / 2)];
-    return { widestPremium: sorted[sorted.length - 1], widestDiscount: sorted[0], median };
+    const scored = priced
+      .map((row) => ({ row, percent: dislocationOf(row)?.percent }))
+      .filter((entry): entry is { row: BasisRow; percent: number } => typeof entry.percent === "number")
+      .sort((a, b) => a.percent - b.percent);
+    if (scored.length === 0) return null;
+    const absSorted = scored.map((entry) => Math.abs(entry.percent)).sort((a, b) => a - b);
+    return {
+      median: absSorted[Math.floor(absSorted.length / 2)],
+      maxAbs: absSorted[absSorted.length - 1],
+      widestPremium: scored[scored.length - 1],
+      widestDiscount: scored[0],
+    };
   }, [priced]);
 
   const freshestQuote = useMemo(() => {
     const stamps = data.rows.map((row) => row.tokenUpdatedAt).filter((v): v is number => v !== null);
     return stamps.length === 0 ? null : Math.max(...stamps);
   }, [data.rows]);
+
+  /** Reveal a row's own quote time only when it lags the freshest one. */
+  function laggingQuote(row: BasisRow) {
+    if (row.tokenUpdatedAt === null || freshestQuote === null) return false;
+    return freshestQuote - row.tokenUpdatedAt > STALE_QUOTE_SECONDS;
+  }
+
+  function reveal(symbol: string) {
+    setSelectedSymbol(symbol);
+    if (!capped.some((row) => row.symbol === symbol)) {
+      setQuery("");
+      setScope("all");
+      setShowAll(true);
+    }
+  }
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -267,20 +327,18 @@ export function BasisMonitor({ data }: { data: BasisData }) {
         {stats ? (
           <section className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Summary">
             <Stat label="Priced" value={String(priced.length)} hint={`of ${rows.length} listed`} />
-            <Stat
-              label="Median gap"
-              value={`${stats.median.toFixed(2)}%`}
-              hint="absolute, priced rows only"
-            />
+            <Stat label="Median gap" value={`${stats.median.toFixed(2)}%`} hint="absolute, priced rows only" />
             <Stat
               label="Widest premium"
-              value={`+${stats.widestPremium.toFixed(1)}%`}
-              hint="token above close"
+              value={`+${stats.widestPremium.percent.toFixed(1)}%`}
+              hint={stats.widestPremium.row.symbol}
+              onSelect={() => reveal(stats.widestPremium.row.symbol)}
             />
             <Stat
               label="Widest discount"
-              value={`${stats.widestDiscount.toFixed(1)}%`}
-              hint="token below close"
+              value={`${stats.widestDiscount.percent.toFixed(1)}%`}
+              hint={stats.widestDiscount.row.symbol}
+              onSelect={() => reveal(stats.widestDiscount.row.symbol)}
             />
           </section>
         ) : null}
@@ -316,82 +374,74 @@ export function BasisMonitor({ data }: { data: BasisData }) {
               {capped.length === visibleRows.length
                 ? `${visibleRows.length} shown`
                 : `${capped.length} of ${visibleRows.length} shown`}{" "}
-              · {priced.length} directly comparable ·{" "}
-              {rows.length - priced.length} listed without a basis · CoinGecko{" "}
-              {data.coingeckoOk ? "available" : "unavailable"} · Yahoo Finance{" "}
+              · {priced.length} directly comparable · {rows.length - priced.length} listed without a basis ·
+              CoinGecko {data.coingeckoOk ? "available" : "unavailable"} · Yahoo Finance{" "}
               {data.yahooOk ? "available" : "unavailable"}
             </p>
 
             <div className="mt-2 overflow-hidden rounded-lg border">
               <Table>
-                  <TableHeader>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="min-w-[200px]">Asset</TableHead>
+                    <TableHead className="min-w-[110px]">Token price</TableHead>
+                    <TableHead className="min-w-[110px]">Underlying close</TableHead>
+                    <TableHead className="min-w-[170px]">Gap vs close</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {capped.length === 0 ? (
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="min-w-[220px]">Asset</TableHead>
-                      <TableHead className="min-w-[150px]">Token price / token</TableHead>
-                      <TableHead className="min-w-[160px]">Underlying close / share</TableHead>
-                      <TableHead className="min-w-[150px]">Token quote</TableHead>
+                      <TableCell colSpan={4} className="text-muted-foreground py-10 text-center text-xs">
+                        {!data.coingeckoOk
+                          ? "CoinGecko did not return the Ondo tokenized-asset list, so there are no token quotes to compare. Nothing is being withheld — the upstream is unavailable."
+                          : !data.yahooOk
+                            ? "Token quotes loaded, but Yahoo Finance returned no completed closes to compare them against."
+                            : "No asset matches this filter."}
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {capped.length === 0 ? (
-                      <TableRow className="hover:bg-transparent">
-                        <TableCell colSpan={4} className="text-muted-foreground py-10 text-center text-xs">
-                          {!data.coingeckoOk
-                            ? "CoinGecko did not return the Ondo tokenized-asset list, so there are no token quotes to compare. Nothing is being withheld — the upstream is unavailable."
-                            : !data.yahooOk
-                              ? "Token quotes loaded, but Yahoo Finance returned no completed closes to compare them against."
-                              : "No asset matches this filter."}
-                        </TableCell>
-                      </TableRow>
-                    ) : null}
-                    {capped.map((row) => (
-                      <TableRow
-                        key={row.symbol}
-                        tabIndex={0}
-                        aria-selected={row.symbol === selectedSymbol}
-                        data-state={row.symbol === selectedSymbol ? "selected" : undefined}
-                        onClick={() => setSelectedSymbol(row.symbol)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            setSelectedSymbol(row.symbol);
-                          }
-                        }}
-                        className="cursor-pointer"
-                      >
-                        <TableCell>
-                          <span className="flex items-center gap-2.5">
-                            <CompanyLogo ticker={row.ticker} name={row.name} />
-                            <span className="min-w-0">
-                              <span className="block font-mono text-[13px] font-semibold">{row.symbol}</span>
-                              <span className="text-muted-foreground block truncate text-[11px]">
-                                {row.name}
+                  ) : null}
+                  {capped.map((row) => (
+                    <TableRow
+                      key={row.symbol}
+                      tabIndex={0}
+                      aria-selected={row.symbol === selectedSymbol}
+                      data-state={row.symbol === selectedSymbol ? "selected" : undefined}
+                      onClick={() => setSelectedSymbol(row.symbol)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedSymbol(row.symbol);
+                        }
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <TableCell>
+                        <span className="flex items-center gap-2.5">
+                          <CompanyLogo ticker={row.ticker} name={row.name} />
+                          <span className="min-w-0">
+                            <span className="block font-mono text-[13px] font-semibold">{row.symbol}</span>
+                            <span className="text-muted-foreground block truncate text-[11px]">{row.name}</span>
+                            {laggingQuote(row) ? (
+                              <span className="text-muted-foreground block font-mono text-[10px]">
+                                quote {formatUtc(row.tokenUpdatedAt)}
                               </span>
-                            </span>
+                            ) : null}
                           </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="block font-mono text-[13px] tabular-nums">
-                            {row.tokenPrice === null ? "—" : usd.format(row.tokenPrice)}
-                          </span>
-                          <span className="mt-1 block">
-                            <StatusChip row={row} />
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="block font-mono text-[13px] tabular-nums">
-                            {row.underlyingClose === null ? "—" : usd.format(row.underlyingClose)}
-                          </span>
-                          <span className="text-muted-foreground block text-[11px]">
-                            {formatDay(row.underlyingCloseTime)}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground font-mono text-[11px]">
-                          {formatUtc(row.tokenUpdatedAt)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-mono text-[13px] tabular-nums">
+                        {row.tokenPrice === null ? "—" : usd.format(row.tokenPrice)}
+                      </TableCell>
+                      <TableCell className="font-mono text-[13px] tabular-nums">
+                        {row.underlyingClose === null ? "—" : usd.format(row.underlyingClose)}
+                      </TableCell>
+                      <TableCell>
+                        <GapCell row={row} maxAbs={stats?.maxAbs ?? 0} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
               </Table>
               {hiddenCount > 0 ? (
                 <div className="flex items-center justify-center border-t p-3">
@@ -417,14 +467,16 @@ export function BasisMonitor({ data }: { data: BasisData }) {
             <ChevronDown className="ml-auto size-4 transition-transform" />
           </CollapsibleTrigger>
           <CollapsibleContent className="text-muted-foreground px-4 pb-4 text-xs leading-relaxed">
-            Token prices come from CoinGecko and underlying closes from Yahoo Finance. Premium or discount is the
-            raw percentage difference between the latest token quote and the underlying asset&rsquo;s latest
-            completed U.S. session close. A row is priced only when both legs are comparable. Rows needing an
-            authenticated shares multiplier are dropped, because their per-token and per-share values are on
-            different scales. Rows whose token quote predates the completed close are listed but left unpriced,
-            because the difference would be the underlying&rsquo;s own move rather than a dislocation. While the
-            U.S. regular session is open no row is priced at all. Company marks identify the underlying issuer and
-            imply no affiliation. Informational only — not pricing or investment advice.
+            Token prices come from CoinGecko and underlying closes from Yahoo Finance. Every row shares the same
+            completed close, shown once above; a row prints its own quote time only when that quote lags the
+            freshest one. Premium or discount is the raw percentage difference between the two, and the bar scales
+            each row against the widest gap on the page. A row is priced only when both legs are comparable. Rows
+            needing an authenticated shares multiplier are dropped, because their per-token and per-share values
+            are on different scales. Rows whose token quote predates the completed close are listed but left
+            unpriced, because the difference would be the underlying&rsquo;s own move rather than a dislocation.
+            While the U.S. regular session is open no row is priced at all. Every figure here is a display price,
+            not an executable quote. Company marks identify the underlying issuer and imply no affiliation.
+            Informational only — not pricing or investment advice.
           </CollapsibleContent>
         </Collapsible>
       </main>
