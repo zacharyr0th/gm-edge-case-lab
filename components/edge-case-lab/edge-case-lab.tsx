@@ -8,7 +8,6 @@ import {
   ChevronDown,
   CircleAlert,
   CircleX,
-  ClipboardCheck,
   ShieldCheck,
   Copy,
   Link2,
@@ -35,7 +34,6 @@ import { AppFooter } from "@/components/ui/app-footer";
 import { AppHeader } from "@/components/ui/app-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -267,29 +265,35 @@ export function EdgeCaseLab() {
     <div className="flex min-h-dvh flex-col">
       <AppHeader active="lab" />
       <main className="mx-auto w-full max-w-[1384px] flex-1 px-5 py-6 sm:px-6">
-        <section
-          className="bg-muted/50 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border px-4 py-3"
-          aria-label="Lab summary"
-        >
-          <ClipboardCheck className="text-muted-foreground size-4" />
-          <div className="min-w-0">
-            <strong className="block text-sm">Production matrix sign-off</strong>
-            <span className="text-muted-foreground text-xs">
-              {labChecks.length} public-docs-derived launch conditions across Ondo Stocks and Ondo Perps.
-            </span>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <a
-              href="https://docs.ondo.finance/openapi.json"
-              target="_blank"
-              rel="noreferrer"
-              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs underline underline-offset-2"
-            >
-              OpenAPI <ArrowUpRight className="size-3.5" />
-            </a>
-            <Button variant="outline" size="sm" onClick={() => { setResults(null); setRunId((v) => v + 1); }}>
-              <RotateCcw /> Replay
-            </Button>
+        <section className="rounded-lg border px-5 py-5" aria-labelledby="lab-intro">
+          <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
+            <div className="min-w-0 max-w-2xl space-y-2.5">
+              <h2 id="lab-intro" className="text-lg leading-snug font-semibold tracking-tight">
+                What breaks when you build on Ondo
+              </h2>
+              <p className="text-muted-foreground text-[13px] leading-relaxed">
+                No single endpoint answers &ldquo;can this user trade this asset right now.&rdquo; The answer is
+                spread across market status, per-asset events, session rules, trading limits, and quote
+                availability. The streaming and Perps APIs are not in the OpenAPI document at all.
+              </p>
+              <p className="text-muted-foreground text-[13px] leading-relaxed">
+                Every row below is a condition taken from Ondo&rsquo;s own documents. Open one and it runs the
+                naive version in your browser, shows what that does, and shows what to ship instead.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <a
+                href="https://docs.ondo.finance/openapi.json"
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs underline underline-offset-2"
+              >
+                OpenAPI <ArrowUpRight className="size-3.5" />
+              </a>
+              <Button variant="outline" size="sm" onClick={() => { setResults(null); setRunId((v) => v + 1); }}>
+                <RotateCcw /> Replay
+              </Button>
+            </div>
           </div>
         </section>
 
@@ -327,11 +331,11 @@ export function EdgeCaseLab() {
           </span>
         </section>
 
-        <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="mt-5">
           <div className="min-w-0">
             <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-              <span><strong className="text-foreground">{labChecks.length}</strong> production states</span>
-              <span><strong className="text-foreground">{labEndpointDirectory.length}</strong> API endpoints</span>
+              <span><strong className="text-foreground">{labChecks.length}</strong> conditions</span>
+              <span><strong className="text-foreground">{labEndpointDirectory.length}</strong> REST endpoints</span>
               <span><strong className="text-foreground">{labStreamDirectory.length}</strong> stream RPCs</span>
               <span><strong className="text-foreground">{labPerpsDirectory.length}</strong> perps routes</span>
               <span><strong className="text-foreground">3</strong> chains</span>
@@ -344,7 +348,7 @@ export function EdgeCaseLab() {
 
             <div className="mt-4 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-muted-foreground text-[10px] tracking-wide uppercase">Audit as</span>
+                <span className="text-muted-foreground text-[10px] tracking-wide uppercase">Read as</span>
                 <ToggleGroup
                   type="single"
                   value={mode}
@@ -423,7 +427,7 @@ export function EdgeCaseLab() {
                           </TooltipTrigger>
                           <TooltipContent className="max-w-64">{verdict.explain}</TooltipContent>
                         </Tooltip>
-                        <span className="text-muted-foreground hidden w-[34%] shrink-0 text-[11px] leading-snug xl:block">
+                        <span className="text-muted-foreground hidden w-[32%] shrink-0 text-[11px] leading-snug lg:block">
                           {check.correct[0]}
                         </span>
                         <ChevronDown
@@ -461,67 +465,13 @@ export function EdgeCaseLab() {
             </div>
           </div>
 
-          <aside className="space-y-4" aria-labelledby="purpose-title">
-            <Card className="gap-0 rounded-lg py-5 shadow-none">
-              <CardContent className="space-y-3 px-5">
-                <p className="text-muted-foreground text-[10px] tracking-wide uppercase">What this is</p>
-                <h2 id="purpose-title" className="text-xl leading-snug font-semibold tracking-tight">
-                  A production-readiness tool, not an endpoint demo.
-                </h2>
-                <p className="text-muted-foreground text-[13px] leading-relaxed">
-                  The matrix models conditions an integration should explicitly handle, based on Ondo&rsquo;s public
-                  API, product documentation, and chain-specific execution behavior.
-                </p>
-                <p className="text-muted-foreground text-[13px] leading-relaxed">
-                  It checks whether the product stays safe when markets close, assets are restricted, token
-                  economics change, quotes diverge, limits are reached, schemas evolve, or simulation produces a
-                  false warning.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="gap-0 rounded-lg py-5 shadow-none">
-              <CardContent className="px-5">
-                <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                  Use the matrix to create
-                </p>
-                <ol className="mt-3 space-y-2.5">
-                  {[
-                    "Partner acceptance criteria",
-                    "Repeatable test fixtures",
-                    "Launch gates and sign-off",
-                    "Post-launch monitoring",
-                  ].map((item, i) => (
-                    <li key={item} className="flex items-center gap-3 text-[13px]">
-                      <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      {item}
-                    </li>
-                  ))}
-                </ol>
-              </CardContent>
-            </Card>
-
-            <Card className="gap-0 rounded-lg py-5 shadow-none">
-              <CardContent className="px-5">
-                <p className="text-muted-foreground text-[10px] tracking-wide uppercase">Coverage</p>
-                <div className="mt-2.5 flex flex-wrap gap-1.5">
-                  {categories.map((item) => (
-                    <Badge key={item} variant="secondary" className="text-[10px] font-normal">
-                      {item}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </aside>
         </div>
 
         <Collapsible className="mt-6 rounded-lg border">
           <CollapsibleTrigger className="text-muted-foreground flex w-full items-center gap-2 px-4 py-3 text-xs [&[data-state=open]>svg:last-child]:rotate-180">
-            {labEndpointDirectory.length + labStreamDirectory.length + labPerpsDirectory.length} endpoints, RPCs, and
-            channels in the contract surface
+            Everything the conditions read —{" "}
+            {labEndpointDirectory.length + labStreamDirectory.length + labPerpsDirectory.length} endpoints, streams,
+            and channels
             <ChevronDown className="ml-auto size-4 transition-transform" />
           </CollapsibleTrigger>
           <CollapsibleContent className="grid gap-2 px-4 pb-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -536,15 +486,14 @@ export function EdgeCaseLab() {
 
         <Collapsible className="mt-3 rounded-lg border">
           <CollapsibleTrigger className="text-muted-foreground flex w-full items-center gap-2 px-4 py-3 text-xs [&[data-state=open]>svg:last-child]:rotate-180">
-            Methodology and sources
+            Where the fixtures come from
             <ChevronDown className="ml-auto size-4 transition-transform" />
           </CollapsibleTrigger>
           <CollapsibleContent className="text-muted-foreground px-4 pb-4 text-xs leading-relaxed">
-            Fixtures mirror Ondo&rsquo;s published documents: the GM OpenAPI contract, the streaming{" "}
-            <code className="font-mono">.proto</code>, the Error Codes and caching pages, and the Ondo Perps REST and
-            WebSocket specifications. Values are illustrative;
-            the live API requires an <code className="font-mono">x-api-key</code>. Independent prototype by Zachary
-            Roth, not affiliated with Ondo Finance.
+            Every fixture is copied from a document Ondo publishes: the GM OpenAPI contract, the streaming{" "}
+            <code className="font-mono">.proto</code>, the Error Codes and caching pages, and the Perps REST and
+            WebSocket specs. The numbers in them are made up, because the live APIs need credentials. Independent
+            prototype by Zachary Roth, not affiliated with Ondo Finance.
           </CollapsibleContent>
         </Collapsible>
       </main>

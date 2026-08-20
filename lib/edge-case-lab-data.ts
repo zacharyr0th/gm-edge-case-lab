@@ -470,7 +470,7 @@ export const labChecks: LabCheck[] = [
     category: "Schema evolution",
     title: "underlyingMarket is null for basket tokens",
     scenario:
-      "Shipped: the published contract now marks underlyingMarket required and nullable. Basket tokens return null there, with the basket in constituentTokens.",
+      "underlyingMarket is required and nullable. Basket tokens return null there and put the basket in constituentTokens.",
     endpoints: [{ method: "GET", path: "/v1/assets/{symbol}/market" }],
     doc: { label: "Upcoming API changes", url: "https://docs.ondo.finance/api-reference/upcoming-changes" },
     fixtures: [{ label: "GET /v1/assets/EXMPLon/market → 200 (contract shape, illustrative values)", body: compositeMarket }],
@@ -589,7 +589,7 @@ export const labChecks: LabCheck[] = [
     category: "Market state",
     title: "Tradability read from a cached endpoint is a minute behind",
     scenario:
-      "Market data is cached for one minute. Trading limits are not cached at all — the docs call those values critical for risk management. Gate the Buy button on the cached endpoint and you gate it on the past.",
+      "Market data is cached for a minute. Trading limits are not cached at all. Gate the Buy button on the cached one and you gate it on the past.",
     endpoints: [
       { method: "GET", path: "/v1/assets/{symbol}/market" },
       { method: "GET", path: "/v1/limits/trading" },
@@ -622,7 +622,7 @@ export const labChecks: LabCheck[] = [
     category: "Corporate actions",
     title: "Asset limited during an earnings window",
     scenario:
-      "Status stays “active” — the restriction is an event: reason ASSET_LIMITED with a start/end window. ASSET_LIMITED is also the one restriction code the docs give an HTTP 200, so nothing about the response says “handle me”.",
+      "The restriction is an event, not a status. The asset stays “active” while an ASSET_LIMITED window runs, and the whole thing arrives on an HTTP 200.",
     endpoints: [{ method: "GET", path: "/v1/status/assets" }],
     doc: { label: "Get Asset Statuses", url: "https://docs.ondo.finance/api-reference/status/get-asset-statuses" },
     fixtures: [{ label: "GET /v1/status/assets → 200 (one event, illustrative)", body: [earningsStatusEvent] }],
@@ -712,7 +712,7 @@ export const labChecks: LabCheck[] = [
     category: "Prices & quotes",
     title: "Display price is not the executable price",
     scenario:
-      "Price endpoints are display-only; execution prices on the attestation quote. The gap between them is spread, and the spec is its own trap here: AssetPrice.timestamp is documented in milliseconds under a 10-digit seconds example.",
+      "Price endpoints are for display. Execution prices on the attestation quote, and the difference between them is spread, not an error.",
     endpoints: [
       { method: "GET", path: "/v1/assets/{symbol}/prices/latest" },
       { method: "POST", path: "/v1/attestations/soft" },
@@ -749,7 +749,7 @@ export const labChecks: LabCheck[] = [
     category: "Prices & quotes",
     title: "The attestation response can\u2019t be replayed as a request",
     scenario:
-      "Requests take side \"buy\" and chainId \"ethereum-1\"; the response returns side \"0\" and chainId \"1\". expiration is the only timestamp in the spec with no unit stated, and it is seconds.",
+      "Requests take side “buy” and chainId “ethereum-1”. The response returns side “0” and chainId “1”, and expiration in seconds rather than milliseconds.",
     endpoints: [{ method: "POST", path: "/v1/attestations" }],
     doc: {
       label: "Request a Mint or Redeem Attestation",
@@ -783,7 +783,7 @@ export const labChecks: LabCheck[] = [
     category: "Prices & quotes",
     title: "42 interval/range combinations typecheck, and the docs disagree on which work",
     scenario:
-      "interval and range are both required and independently enumerated, so generated types allow every pairing. Worse, the two published lists differ: the OpenAPI description names ten pairs, the INVALID_INTERVAL_RANGE_PAIR message names eight — and they are not a subset of each other.",
+      "interval and range are separate enums, so generated types allow all 42 pairings. The docs then disagree on which ones work — the spec lists ten, the error message lists eight.",
     endpoints: [{ method: "GET", path: "/v1/assets/{symbol}/prices/ohlc" }],
     doc: {
       label: "Get OHLC Data for an Asset",
@@ -877,7 +877,7 @@ export const labChecks: LabCheck[] = [
     category: "Schema evolution",
     title: "A reason code your switch statement has never seen",
     scenario:
-      "The TradingLimitsReasonCode enum has eight members. The Error Codes page documents six more restriction codes that are not in it, including ASSET_REDEEM_ONLY — an asset you can sell but not buy. This is not a hypothetical about future growth; the gap is in the published contract today.",
+      "The reason enum has eight members. The Error Codes page documents six more, including ASSET_REDEEM_ONLY: an asset you can sell but not buy.",
     endpoints: [{ method: "GET", path: "/v1/limits/trading" }],
     doc: { label: "Error Codes", url: "https://docs.ondo.finance/api-reference/error-codes" },
     fixtures: [
@@ -935,7 +935,7 @@ export const labChecks: LabCheck[] = [
     category: "Chain infrastructure",
     title: "userAddress is optional in the schema and required on Solana",
     scenario:
-      "userAddress is absent from the attestation request\u2019s required array, so generated clients make it optional. On solana-900 it is mandatory, and that appears only in the endpoint\u2019s 400 examples.",
+      "userAddress is missing from the required array of the request, so generated clients make it optional. On solana-900 it is mandatory.",
     endpoints: [{ method: "POST", path: "/v1/attestations" }],
     doc: { label: "Error Codes", url: "https://docs.ondo.finance/api-reference/error-codes" },
     fixtures: [
@@ -966,7 +966,7 @@ export const labChecks: LabCheck[] = [
     category: "Perps",
     title: "The dead man's switch example omits the field that arms it",
     scenario:
-      "cancelAllOrdersAfterPerps cancels every resting order if the client stops checking in. Its description says timeout_seconds is required. The example subscribe message in the same document does not include it, and the update payload is typed as a bare object, so nothing confirms the switch is armed.",
+      "cancelAllOrdersAfterPerps cancels every resting order if your client stops checking in. Its description requires timeout_seconds. The example message omits it, and nothing in the reply confirms the switch is armed.",
     endpoints: [{ method: "RPC", path: "WS cancelAllOrdersAfterPerps" }],
     doc: { label: "Ondo Perps WebSocket API", url: "https://docs.ondo.finance/api-reference/ws-spec.json" },
     fixtures: [
@@ -998,7 +998,7 @@ export const labChecks: LabCheck[] = [
     category: "Perps",
     title: "Batch orders return 200 with the failures inside the body",
     scenario:
-      "POST and DELETE on /v1/perps/orders/batch both answer 200 with success: true, then split the outcome into addedOrders/failedOrders and successfulCancels/failedCancels. The HTTP status describes the request, not the orders.",
+      "Batch create and batch cancel both answer 200 with success: true, then split the outcome into added and failed lists. The status describes the request, not the orders.",
     endpoints: [
       { method: "POST", path: "/v1/perps/orders/batch" },
       { method: "GET", path: "/v1/markets" },
@@ -1033,7 +1033,7 @@ export const labChecks: LabCheck[] = [
     category: "Perps",
     title: "“open” covers partially filled, and the status enum cannot say so",
     scenario:
-      "ApiOrder.status is one of open, fullyfilled, canceled, pending, untriggered. There is no partial state. A half-filled order stays open, and only filledSize records that anything traded.",
+      "There is no partial-fill status. A half-filled order still reads open, and only filledSize shows that anything traded.",
     endpoints: [{ method: "POST", path: "/v1/perps/orders" }],
     doc: { label: "Ondo Perps REST API", url: "https://docs.ondo.finance/api-reference/rest-spec.json" },
     fixtures: [{ label: "GET order → 200, status open, a quarter filled", body: partiallyFilledOrder }],
@@ -1061,7 +1061,7 @@ export const labChecks: LabCheck[] = [
     category: "Perps",
     title: "Orders must align to increments the spec never types",
     scenario:
-      "AddOrderReq requires price aligned with quoteIncrement and size aligned with baseIncrement, both “from /v1/markets”. MarketsResult types tradingPairs as an array of bare objects, so those values exist only in an example. AddOrderReq itself only requires side and market.",
+      "Orders must align to quoteIncrement and baseIncrement from /v1/markets. That endpoint types its trading pairs as bare objects, so both values exist only in an example.",
     endpoints: [
       { method: "GET", path: "/v1/markets" },
       { method: "POST", path: "/v1/perps/orders" },
@@ -1091,7 +1091,7 @@ export const labChecks: LabCheck[] = [
     category: "Perps",
     title: "A quiet market and a dead socket look identical",
     scenario:
-      "The socket closes after 180 seconds idle. The client must send {op: ping} and expect {type: pong}; private channels need a login message before subscribing. Nothing about a silent connection distinguishes a calm market from a closed one.",
+      "The socket closes after 180 seconds idle. Send {op: ping}, expect {type: pong}, and log in before subscribing to a private channel.",
     endpoints: [{ method: "RPC", path: "WS ordersPerps" }],
     doc: { label: "Ondo Perps WebSocket API", url: "https://docs.ondo.finance/api-reference/ws-spec.json" },
     fixtures: [{ label: "Connection rules, from the spec description", body: wsConnectionRules }],
@@ -1119,7 +1119,7 @@ export const labChecks: LabCheck[] = [
     category: "Streaming",
     title: "Three timestamp units in one API",
     scenario:
-      "REST timestamps are milliseconds. Attestation.expiration is seconds. Every gRPC stream field is uint64 nanoseconds. One shared normalizer produces three different wrong answers.",
+      "REST is milliseconds, attestation expiry is seconds, the gRPC streams are nanoseconds. One shared normalizer gets two of the three wrong.",
     endpoints: [{ method: "RPC", path: "BackendService/StreamPriceUpdates" }],
     doc: { label: "Protobuf Schema", url: "https://docs.ondo.finance/api-reference/protobuf-schema" },
     fixtures: [{ label: "StreamPriceUpdatesResponse frame (nanosecond timestamp)", body: priceUpdateFrame }],
@@ -1147,7 +1147,7 @@ export const labChecks: LabCheck[] = [
     category: "Streaming",
     title: "Partial candles reuse one timestamp until is_closed",
     scenario:
-      "StreamOHLC revises the current minute on every tick. All partials carry the same bucket timestamp and is_closed marks the final emission. Append instead of upsert and one minute becomes several candles.",
+      "StreamOHLC revises the current minute on every tick. Every partial carries the same bucket timestamp, and is_closed marks the last one.",
     endpoints: [{ method: "RPC", path: "BackendService/StreamOHLC" }],
     doc: { label: "OHLC Streaming", url: "https://docs.ondo.finance/api-reference/ohlc-streaming" },
     fixtures: [{ label: "Three frames for one minute bucket — the last one closes it", body: ohlcPartials }],
@@ -1175,7 +1175,7 @@ export const labChecks: LabCheck[] = [
     category: "Streaming",
     title: "The stream never backfills, so every reconnect leaves a hole",
     scenario:
-      "The stream does not replay history, and the docs pair it with the REST OHLC endpoint for exactly that reason. No heartbeat is documented, so a dropped stream is silent: no error, just no more messages.",
+      "The stream never replays history, and no heartbeat is documented. A dropped connection is silent — no error, just no more messages.",
     endpoints: [
       { method: "RPC", path: "BackendService/StreamOHLC" },
       { method: "GET", path: "/v1/assets/{symbol}/prices/ohlc" },
@@ -1206,7 +1206,7 @@ export const labChecks: LabCheck[] = [
     category: "Streaming",
     title: "Depth bids are the redeem side, and each level is a marginal price",
     scenario:
-      "SoftQuoteDepth labels bids the sell/redeem side and asks the buy/mint side. Each level price is the marginal price for that increment, not a running average. When error is set, both arrays are empty.",
+      "bids is the redeem side and asks is the mint side. Each level price is marginal for that increment, not a running average.",
     endpoints: [{ method: "RPC", path: "BackendService/StreamSoftQuoteDepth" }],
     doc: { label: "Soft Quote Depth Streaming", url: "https://docs.ondo.finance/api-reference/soft-quote-depth-streaming" },
     fixtures: [
