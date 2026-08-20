@@ -14,7 +14,7 @@ export function AppHeader({ active }: { active: "basis" | "lab" }) {
     // the viewport. Solid background below md, blur only where the nav is static.
     <header className="bg-background sticky top-0 z-40 border-b md:bg-background/80 md:backdrop-blur-md">
       <div className="mx-auto grid w-full max-w-[1384px] grid-cols-[1fr_auto] items-center gap-3 px-5 py-3 sm:px-6 md:grid-cols-[minmax(200px,1fr)_auto_minmax(200px,1fr)]">
-        <Link href={isBasis ? "/basis" : "/"} className="flex min-w-0 items-center gap-2.5">
+        <Link href={isBasis ? "/" : "/lab"} className="flex min-w-0 items-center gap-2.5">
           <span className="bg-foreground text-background flex size-7 shrink-0 items-center justify-center rounded-md text-[11px] font-bold max-md:hidden">
             ON
           </span>
@@ -38,7 +38,7 @@ export function AppHeader({ active }: { active: "basis" | "lab" }) {
           )}
         >
           <Link
-            href="/basis"
+            href="/"
             aria-current={isBasis ? "page" : undefined}
             className={cn(
               navLink,
@@ -49,7 +49,7 @@ export function AppHeader({ active }: { active: "basis" | "lab" }) {
             <Gauge className="size-4" /> Basis
           </Link>
           <Link
-            href="/"
+            href="/lab"
             aria-current={!isBasis ? "page" : undefined}
             className={cn(
               navLink,

@@ -271,7 +271,7 @@ function ComparisonPanel({ row, onClose }: { row: BasisRow; onClose: () => void 
           documents.
         </p>
         <Link
-          href="/#display-vs-executable"
+          href="/lab#display-vs-executable"
           className="text-muted-foreground hover:text-foreground mt-2 inline-flex items-center gap-1 text-[11px] underline underline-offset-2"
         >
           Display price is not the executable price <ArrowUpRight className="size-3" />

@@ -40,7 +40,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-const FIXTURES_URL = "https://ondo-integration-lab.vercel.app/fixtures.json";
+const FIXTURES_URL = "https://basis-integration.vercel.app/fixtures.json";
 
 /** Written as lines so the braces and backticks survive being pasted out of the page. */
 const testHarness = [

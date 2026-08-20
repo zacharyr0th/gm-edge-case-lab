@@ -6,9 +6,9 @@ Two pages, both `noindex`:
 
 | Path | What it is |
 | --- | --- |
-| `/` | The matrix. 25 production states replayed against a happy-path integration. |
-| `/basis` | Live off-hours gap between GM token quotes and the last completed U.S. close. |
-| `/lab` | Redirect to `/`, kept so older links still resolve. |
+| `/` | Live off-hours gap between GM token quotes and the last completed U.S. close. |
+| `/lab` | The matrix. 25 production states replayed against a happy-path integration. |
+| `/basis` | Redirect to `/`, kept so older links still resolve. |
 
 ## The matrix
 
@@ -56,7 +56,7 @@ Last run: 2026-08-20, all 58 claims held.
 Every payload the matrix renders is exported as one file, rebuilt on each deploy from the same data:
 
 ```bash
-curl -O https://ondo-integration-lab.vercel.app/fixtures.json
+curl -O https://basis-integration.vercel.app/fixtures.json
 ```
 
 It carries all 25 conditions — id, verdict, the assumption that breaks, what to ship instead, the endpoints, a permalink back to the row, and the fixture bodies. Loop it against your own client:
@@ -83,7 +83,7 @@ There is no package to install. The export is the interface.
 
 ## Basis monitor
 
-`/basis` charts the premium or discount of GM tokens against each underlying's latest completed U.S. close. Assets come from CoinGecko's "Ondo Tokenized Assets" category; closes come from Yahoo Finance.
+The homepage charts the premium or discount of GM tokens against each underlying's latest completed U.S. close. Assets come from CoinGecko's "Ondo Tokenized Assets" category; closes come from Yahoo Finance.
 
 The page leads with session clocks: which GM session is live (premarket, regular, postmarket, overnight, off-hours) and whether Tokyo, Hong Kong, London, Frankfurt and New York are open. That strip is the explanation for the numbers under it. GM keeps trading after the U.S. close, and while it does, Asia and Europe take their turns — so a token that moved overnight usually moved because one of those was open.
 
@@ -102,7 +102,7 @@ bun install
 bun run dev
 ```
 
-http://127.0.0.1:3452 for the matrix, http://127.0.0.1:3452/basis for the monitor.
+http://127.0.0.1:3452 for the monitor, http://127.0.0.1:3452/lab for the matrix.
 
 ## Status
 

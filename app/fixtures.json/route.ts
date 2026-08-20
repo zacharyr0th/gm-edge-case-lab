@@ -10,7 +10,7 @@ import verification from "@/lib/contract-verification.json";
 
 export const dynamic = "force-static";
 
-const SITE = "https://ondo-integration-lab.vercel.app";
+const SITE = "https://basis-integration.vercel.app";
 
 export function GET() {
   return Response.json(

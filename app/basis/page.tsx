@@ -1,16 +1,6 @@
-import type { Metadata } from "next";
-import { BasisMonitor } from "@/components/basis-monitor/basis-monitor";
-import { loadBasisData } from "@/lib/basis-data";
+import { redirect } from "next/navigation";
 
-export const revalidate = 300;
-
-export const metadata: Metadata = {
-  title: "GM Off-Hours Monitor",
-  description: "Live premium or discount of every Ondo GM token vs the underlying's last U.S. close.",
-  robots: { index: false, follow: false },
-};
-
-export default async function BasisPage() {
-  const data = await loadBasisData();
-  return <BasisMonitor data={data} />;
+// The basis monitor moved to the root; keep the old path working.
+export default function BasisRedirect() {
+  redirect("/");
 }
