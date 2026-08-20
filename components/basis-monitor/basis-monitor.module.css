@@ -400,3 +400,12 @@
     min-width: 100%;
   }
 }
+
+.emptyState {
+  margin: 0;
+  padding: 28px 16px 32px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}

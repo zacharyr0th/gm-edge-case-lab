@@ -10,7 +10,7 @@ export function AppHeader({ active }: { active: "basis" | "lab" }) {
         <a className={styles.brand} href={isBasis ? "/basis" : "/"} aria-label="GM tools home">
           <span className={styles.brandMark}>GM</span>
           <span>
-            <strong>{isBasis ? "GM Off-Hours Monitor" : "GM Edge-Case Lab"}</strong>
+            <h1>{isBasis ? "GM Off-Hours Monitor" : "GM Edge-Case Lab"}</h1>
             <em>{isBasis ? "Weekend price dislocation" : "Integration compatibility"}</em>
           </span>
         </a>

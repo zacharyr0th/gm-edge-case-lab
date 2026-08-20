@@ -9,7 +9,12 @@ export function AppFooter({ page }: { page: keyof typeof sourceNote }) {
   return (
     <footer className={styles.footer}>
       <p>Independent prototype by Zachary Roth. Not affiliated with or endorsed by Ondo Finance.</p>
-      <span>{sourceNote[page]}</span>
+      <span>
+        {sourceNote[page]}{" "}
+        <a href="https://github.com/zacharyr0th/gm-edge-case-lab" target="_blank" rel="noreferrer">
+          Source
+        </a>
+      </span>
     </footer>
   );
 }

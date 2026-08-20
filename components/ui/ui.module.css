@@ -38,12 +38,13 @@
   letter-spacing: -.02em;
 }
 
-.brand strong,
+.brand h1,
 .brand em {
   display: block;
 }
 
-.brand strong {
+.brand h1 {
+  margin: 0;
   font-size: 14px;
   font-weight: 620;
   letter-spacing: -.01em;

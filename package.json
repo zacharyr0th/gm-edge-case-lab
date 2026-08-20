@@ -1,6 +1,12 @@
 {
   "name": "gm-edge-case-lab",
   "version": "0.1.0",
+  "description": "Documented Ondo Stocks (Global Markets) production states replayed against a happy-path integration, plus a live off-hours basis monitor.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zacharyr0th/gm-edge-case-lab.git"
+  },
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack --port 3452",

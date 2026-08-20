@@ -128,6 +128,11 @@ export function BasisMonitor({ data }: { data: BasisData }) {
     [visibleRows],
   );
   const withheldCount = visibleRows.length - comparableCount;
+  const freshestQuote = useMemo(() => {
+    const stamps = data.rows.map((row) => row.tokenUpdatedAt).filter((v): v is number => v !== null);
+    return stamps.length === 0 ? null : Math.max(...stamps);
+  }, [data.rows]);
+  const upstreamDown = !data.coingeckoOk || !data.yahooOk;
   const initialSymbol = useMemo(
     () => (visibleRows.find((row) => row.basisStatus === "comparable") ?? visibleRows[0])?.symbol ?? null,
     [visibleRows],
@@ -147,7 +152,7 @@ export function BasisMonitor({ data }: { data: BasisData }) {
               ? "Live GM token quotes shown with the latest completed U.S. close."
               : "Public GM token quotes shown with the latest completed U.S. close."}
           </span>
-          <span className={styles.statusUpdated}>Updated {formatUtc(data.rows[0]?.tokenUpdatedAt ?? null)}</span>
+          <span className={styles.statusUpdated}>Freshest quote {formatUtc(freshestQuote)}</span>
         </section>
 
         <section className={styles.contentGrid}>
@@ -165,6 +170,15 @@ export function BasisMonitor({ data }: { data: BasisData }) {
                 <span role="columnheader">Underlying close / share</span>
                 <span role="columnheader">Updated</span>
               </div>
+              {visibleRows.length === 0 ? (
+                <p className={styles.emptyState}>
+                  {!data.coingeckoOk
+                    ? "CoinGecko did not return the Ondo tokenized-asset list, so there are no token quotes to compare. Nothing is being withheld — the upstream is unavailable."
+                    : !data.yahooOk
+                      ? "Token quotes loaded, but Yahoo Finance returned no completed closes to compare them against."
+                      : "No token currently has both a quote and a completed close on the same terms."}
+                </p>
+              ) : null}
               {visibleRows.map((row) => {
                 const selectedRow = row.symbol === selectedSymbol;
                 const dislocation = getDislocation(row);
@@ -175,12 +189,13 @@ export function BasisMonitor({ data }: { data: BasisData }) {
                     className={`${styles.row} ${styles.dataRow} ${selectedRow ? styles.rowSelected : ""}`}
                     onClick={() => setSelectedSymbol(row.symbol)}
                     aria-pressed={selectedRow}
+                    role="row"
                   >
-                    <span className={styles.asset}>
+                    <span className={styles.asset} role="cell">
                       <strong>{row.symbol}</strong>
                       <em>{row.name}</em>
                     </span>
-                    <span className={styles.price}>
+                    <span className={styles.price} role="cell">
                       {row.tokenPrice === null ? "—" : usd.format(row.tokenPrice)}
                       {dislocation ? (
                         <span className={`${styles.dislocation} ${dislocation.className}`}>
@@ -192,11 +207,11 @@ export function BasisMonitor({ data }: { data: BasisData }) {
                         </span>
                       ) : null}
                     </span>
-                    <span className={styles.price}>
+                    <span className={styles.price} role="cell">
                       {row.underlyingClose === null ? "—" : usd.format(row.underlyingClose)}
                       <em>{formatDay(row.underlyingCloseTime)}</em>
                     </span>
-                    <span className={styles.updated}>{formatUtc(row.tokenUpdatedAt)}</span>
+                    <span className={styles.updated} role="cell">{formatUtc(row.tokenUpdatedAt)}</span>
                   </button>
                 );
               })}
